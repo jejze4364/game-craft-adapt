@@ -15,6 +15,13 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        
+        // Game-specific variants
+        game: "bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-glow-strong hover:-translate-y-0.5 transition-all duration-200 font-semibold",
+        "game-secondary": "bg-bg-tertiary text-text-secondary border border-border hover:bg-bg-elevated hover:text-foreground hover:-translate-y-0.5 transition-all duration-200",
+        success: "bg-ze-green text-primary-foreground hover:bg-ze-green/90 shadow-md",
+        warning: "bg-ze-yellow text-primary-foreground hover:bg-ze-yellow/90 shadow-md",
+        danger: "bg-ze-red text-primary-foreground hover:bg-ze-red/90 shadow-md",
       },
       size: {
         default: "h-10 px-4 py-2",
