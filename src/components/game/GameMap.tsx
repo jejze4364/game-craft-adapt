@@ -100,7 +100,7 @@ export const GameMap: React.FC<GameMapProps> = ({
       tileClasses += " bg-game-road";
       
       if (isPlayer) {
-        tileContent = "🚚";
+        tileContent = "🏍️";
         tileClasses += " animate-pulse-glow";
       } else if (checkpoint) {
         if (checkpoint.completed) {

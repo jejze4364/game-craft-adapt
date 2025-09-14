@@ -63,7 +63,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 1: Gestão de Tempo e Disponibilidade
   { 
     id: 0, x: 3, y: 2, 
-    video: "Gestão de Tempo e Disponibilidade", 
+    video: "gestao-tempo", 
     context: "Você precisa abrir a loja na plataforma. A disponibilidade é crucial para o sucesso do parceiro.", 
     situation: "A abertura e fechamento da loja na plataforma é feita de que forma?", 
     options: ["Automático por agendamento", "Manual pelo botão verde", "Automático por horário cadastrado", "Feito pelo chat suporte"], 
@@ -75,7 +75,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 2: Taxa de Disponibilidade
   { 
     id: 1, x: 6, y: 3, 
-    video: "Taxa de Disponibilidade", 
+    video: "disponibilidade", 
     context: "A taxa de disponibilidade é um dos KPIs mais importantes para parceiros.", 
     situation: "Taxa de disponibilidade mede qual aspecto da operação?", 
     options: ["Pedidos aceitos/recebidos", "Tempo aberto vs horário cadastrado", "Tempo médio de entrega", "Quantidade de itens ativos"], 
@@ -87,7 +87,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 3: Portfólio de Produtos
   { 
     id: 2, x: 9, y: 2, 
-    video: "Portfólio Ideal", 
+    video: "portfolio", 
     context: "Um cliente não encontrou o produto desejado. O portfólio é fundamental para satisfação.", 
     situation: "Qual é a definição de portfólio ideal no Zé Delivery?", 
     options: ["Apenas cervejas premium", "% de itens recomendados ativos e disponíveis", "Apenas itens com nota 5", "Produtos sem marca própria"], 
@@ -99,7 +99,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 4: Taxa de Aceitação
   { 
     id: 3, x: 13, y: 3, 
-    video: "Taxa de Aceitação", 
+    video: "aceitacao", 
     context: "Chegam vários pedidos simultaneamente. A gestão da aceitação impacta diretamente nos resultados.", 
     situation: "O que mais prejudica a taxa de aceitação?", 
     options: ["Pedidos expirados/rejeitados/cancelados", "Abrir loja mais cedo", "Ter mais entregadores", "Portfólio diversificado"], 
@@ -111,7 +111,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 5: Rastreamento GPS
   { 
     id: 4, x: 2, y: 5, 
-    video: "Sistema de Rastreamento", 
+    video: "rastreamento", 
     context: "Cliente quer acompanhar seu pedido em tempo real. O rastreamento é essencial para transparência.", 
     situation: "Para garantir boa taxa de rastreamento, o que é necessário?", 
     options: ["GPS habilitado + finalizar no cliente", "Apenas conexão Wi-Fi", "Não usar app do entregador", "Desativar dados móveis"], 
@@ -123,7 +123,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 6: Otimização de Rotas
   { 
     id: 5, x: 5, y: 5, 
-    video: "Otimização de Entregas", 
+    video: "otimizacao-rotas", 
     context: "Você tem múltiplas entregas para fazer. A rota escolhida impacta o tempo de entrega.", 
     situation: "Qual é a melhor estratégia para otimizar rotas de entrega?", 
     options: ["Entregar por ordem de chegada", "Agrupar por proximidade geográfica", "Priorizar pedidos maiores", "Usar apenas uma rota fixa"], 
@@ -135,7 +135,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 7: Atendimento ao Cliente
   { 
     id: 6, x: 8, y: 4, 
-    video: "Excelência no Atendimento", 
+    video: "atendimento-cliente", 
     context: "Um cliente reclama de um produto com defeito. O atendimento define a experiência.", 
     situation: "Como deve ser a abordagem ideal no atendimento ao cliente?", 
     options: ["Negar responsabilidade", "Ouvir, entender e solucionar rapidamente", "Transferir para o suporte", "Oferecer desconto sempre"], 
@@ -147,7 +147,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 8: Gestão de Estoque
   { 
     id: 7, x: 11, y: 4, 
-    video: "Controle de Estoque", 
+    video: "gestao-estoque", 
     context: "Seu estoque está baixo e pedidos continuam chegando. A gestão preventiva é crucial.", 
     situation: "Qual é a frequência ideal para atualizar o estoque na plataforma?", 
     options: ["Uma vez por semana", "Diariamente no início do dia", "Em tempo real conforme vendas", "Apenas quando acabar"], 
@@ -159,7 +159,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 9: Prevenção de Avarias
   { 
     id: 8, x: 14, y: 5, 
-    video: "Cuidado com Produtos", 
+    video: "prevencao-avarias", 
     context: "Produtos frágeis precisam de cuidado especial no transporte e armazenamento.", 
     situation: "Como prevenir avarias em produtos sensíveis?", 
     options: ["Embalar adequadamente + manter temperatura", "Transportar rapidamente", "Usar apenas sacolas plásticas", "Evitar produtos frágeis"], 
@@ -171,7 +171,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 10: Protocolos de Segurança
   { 
     id: 9, x: 4, y: 7, 
-    video: "Segurança Operacional", 
+    video: "protocolos-seguranca", 
     context: "Durante as entregas, a segurança deve ser sempre prioridade para você e seus clientes.", 
     situation: "Qual protocolo de segurança é fundamental para entregadores?", 
     options: ["Correr para entregar rápido", "Usar equipamentos de proteção + seguir trânsito", "Economizar combustível", "Trabalhar apenas de dia"], 
@@ -183,7 +183,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 11: Marketing e Promoções
   { 
     id: 10, x: 7, y: 6, 
-    video: "Estratégias de Marketing", 
+    video: "marketing-promocoes", 
     context: "As vendas estão baixas e você quer aumentar a visibilidade da sua loja.", 
     situation: "Qual estratégia de marketing é mais eficaz para parceiros?", 
     options: ["Apenas preços baixos", "Participar de campanhas + produtos em destaque", "Não fazer promoções", "Copiar concorrentes"], 
@@ -195,7 +195,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 12: Gestão Financeira
   { 
     id: 11, x: 10, y: 6, 
-    video: "Controle Financeiro", 
+    video: "gestao-financeira", 
     context: "É essencial acompanhar custos, receitas e margem de lucro para manter o negócio saudável.", 
     situation: "Qual é o principal indicador financeiro que um parceiro deve acompanhar?", 
     options: ["Apenas faturamento bruto", "Margem líquida por produto vendido", "Número total de pedidos", "Velocidade de entrega"], 
@@ -207,7 +207,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 13: Relacionamento com Fornecedores
   { 
     id: 12, x: 3, y: 8, 
-    video: "Parcerias Estratégicas", 
+    video: "relacionamento-fornecedores", 
     context: "Bons fornecedores são essenciais para manter qualidade e preços competitivos.", 
     situation: "Como construir relacionamentos sólidos com fornecedores?", 
     options: ["Sempre escolher o mais barato", "Negociar prazos + manter pagamentos em dia", "Trocar constantemente", "Pagar apenas à vista"], 
@@ -219,7 +219,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 14: Sustentabilidade
   { 
     id: 13, x: 6, y: 8, 
-    video: "Práticas Sustentáveis", 
+    video: "sustentabilidade", 
     context: "Consumidores valorizam empresas que se preocupam com o meio ambiente.", 
     situation: "Qual prática sustentável pode ser implementada facilmente?", 
     options: ["Ignorar embalagens", "Usar sacolas reutilizáveis + reduzir desperdício", "Aumentar entregas", "Usar apenas descartáveis"], 
@@ -231,7 +231,7 @@ const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
   // Checkpoint 15: Análise de Dados
   { 
     id: 14, x: 9, y: 8, 
-    video: "Inteligência de Dados", 
+    video: "analise-dados", 
     context: "Os dados do app fornecem insights valiosos para melhorar sua operação continuamente.", 
     situation: "Qual métrica é mais importante para acompanhar diariamente?", 
     options: ["Apenas número de pedidos", "KPIs combinados + tendências de vendas", "Somente reclamações", "Tempo online apenas"], 

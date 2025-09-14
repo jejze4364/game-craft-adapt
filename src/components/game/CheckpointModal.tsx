@@ -88,12 +88,21 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
         <div className="space-y-6">
           {/* Video Section */}
           <Card className="p-4 bg-bg-secondary/50 border-border/50">
-            <div className="aspect-video bg-bg-tertiary rounded-lg flex items-center justify-center">
-              <div className="text-center text-muted-foreground">
-                <div className="text-4xl mb-2">🎥</div>
-                <p className="text-sm">Vídeo Educativo</p>
-                <p className="text-xs opacity-75">{checkpoint.video}</p>
-              </div>
+            <div className="aspect-video bg-bg-tertiary rounded-lg overflow-hidden">
+              <video 
+                controls 
+                className="w-full h-full object-cover"
+                poster="/videos/thumbnail-default.jpg"
+              >
+                <source src={`/videos/${String(checkpoint.id + 1).padStart(2, '0')}-${checkpoint.video.toLowerCase().replace(/\s+/g, '-')}.mp4`} type="video/mp4" />
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center text-muted-foreground">
+                    <div className="text-4xl mb-2">🎥</div>
+                    <p className="text-sm">Vídeo Educativo</p>
+                    <p className="text-xs opacity-75">{checkpoint.video}</p>
+                  </div>
+                </div>
+              </video>
             </div>
           </Card>
 
