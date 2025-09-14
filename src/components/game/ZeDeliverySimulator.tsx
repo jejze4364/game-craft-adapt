@@ -68,9 +68,9 @@ export const ZeDeliverySimulator: React.FC = () => {
 
     // Check victory
     const completedCount = gameState.checkpoints.filter(cp => cp.completed).length;
-    if (completedCount === gameState.checkpoints.length - 1 && isCorrect) {
+    if (completedCount === gameState.checkpoints.length && isCorrect) {
       setTimeout(() => {
-        toast.success("Parabéns! Você completou o simulador!");
+        toast.success("🎉 Parabéns! Você completou todos os 15 checkpoints do simulador!");
       }, 2000);
     }
   };
