@@ -7,7 +7,9 @@ import { SettingsModal } from "./SettingsModal";
 import { CertificateModal } from "./CertificateModal";
 import { useGameState } from "@/hooks/useGameState";
 import { useDatabase } from "@/hooks/useDatabase";
+import type { Player } from "@/hooks/useDatabase";
 import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
 
 export const ZeDeliverySimulator: React.FC = () => {
   const { gameState, actions } = useGameState();
@@ -17,31 +19,28 @@ export const ZeDeliverySimulator: React.FC = () => {
   const [showCertificate, setShowCertificate] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
-  const [currentPlayer, setCurrentPlayer] = useState<{ id: string; email: string; name?: string } | null>(null);
+  const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [checkpointStartTime, setCheckpointStartTime] = useState<number>(Date.now());
 
-  const handleLogin = async (email: string, password: string) => {
+  const handleLogin = async (playerCode: string, playerName: string) => {
     setLoginLoading(true);
     setLoginError("");
 
     try {
-      // Simulate login process
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (password.length < 6) {
-        throw new Error("Senha deve ter pelo menos 6 caracteres");
+      // Quick loading feedback for the user
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      const player = await savePlayer(playerCode, playerName);
+      if (!player) {
+        throw new Error("Não foi possível salvar seus dados. Tente novamente.");
       }
 
-      // Save player to database
-      const player = await savePlayer(email, email.split('@')[0]);
-      if (player) {
-        setCurrentPlayer(player);
-        actions.startGame(email);
-        toast.success(`Bem-vindo, ${email.split('@')[0]}!`);
-      } else {
-        throw new Error("Erro ao salvar dados do jogador");
-      }
+      setCurrentPlayer(player);
+      setCurrentSessionId(null);
+      actions.resetGame();
+      actions.startGame(playerName);
+      toast.success(`Bem-vindo(a), ${playerName}!`);
     } catch (error) {
       setLoginError(error instanceof Error ? error.message : "Erro no login");
     } finally {
@@ -49,31 +48,28 @@ export const ZeDeliverySimulator: React.FC = () => {
     }
   };
 
-  const handleGuestLogin = async () => {
-    // Save guest player to database
-    const guestEmail = `convidado_${Date.now()}@guest.com`;
-    const player = await savePlayer(guestEmail, "Convidado");
-    if (player) {
-      setCurrentPlayer(player);
-      actions.startGame("Convidado");
-      toast.success("Bem-vindo, Convidado!");
-    }
-  };
-
   const handleCheckpointReach = (checkpointId: number) => {
     const checkpoint = gameState.checkpoints.find(cp => cp.id === checkpointId);
-    if (checkpoint && !checkpoint.completed) {
+    if (checkpoint && checkpoint.status !== "completed") {
       setCurrentCheckpoint(checkpointId);
       setCheckpointStartTime(Date.now());
-      toast.info("Checkpoint encontrado! Responda a questão educativa.");
+
+      const message = checkpoint.status === "failed"
+        ? "Revise o conteúdo com calma e tente responder novamente."
+        : "Checkpoint encontrado! Assista ao vídeo e responda à questão educativa.";
+
+      toast.info(message);
     }
   };
 
   const handleAnswer = async (checkpointId: number, isCorrect: boolean) => {
     const timeTaken = Math.floor((Date.now() - checkpointStartTime) / 1000);
-    
+
     actions.answerCheckpoint(checkpointId, isCorrect);
-    setCurrentCheckpoint(null);
+
+    if (isCorrect) {
+      setCurrentCheckpoint(null);
+    }
     
     // Save checkpoint progress to database
     if (currentSessionId) {
@@ -83,7 +79,7 @@ export const ZeDeliverySimulator: React.FC = () => {
     if (isCorrect) {
       toast.success("Resposta correta! +100 pontos e KPIs melhorados!");
     } else {
-      toast.error("Resposta incorreta. -1 vida e KPIs reduzidos.");
+      toast.error("Resposta incorreta. Você pode revisar e tentar de novo.");
     }
 
     // Check game over
@@ -97,8 +93,8 @@ export const ZeDeliverySimulator: React.FC = () => {
     }
 
     // Check victory - need to check the updated state
-    const updatedCompletedCount = gameState.checkpoints.filter(cp => 
-      cp.completed || cp.id === checkpointId
+    const updatedCompletedCount = gameState.checkpoints.filter(cp =>
+      cp.status === "completed" || (cp.id === checkpointId && isCorrect)
     ).length;
     
     if (updatedCompletedCount === gameState.checkpoints.length && isCorrect) {
@@ -125,7 +121,7 @@ export const ZeDeliverySimulator: React.FC = () => {
       score: gameState.stats.score,
       lives_used: 5 - gameState.stats.lives,
       total_time: timeInSeconds,
-      completed_checkpoints: gameState.checkpoints.filter(cp => cp.completed).length,
+      completed_checkpoints: gameState.checkpoints.filter(cp => cp.status === "completed").length,
       accuracy_percentage: gameState.kpis.disponibilidade,
       delivery_efficiency: gameState.kpis.aceitacao,
       customer_satisfaction: gameState.kpis.avaliacao,
@@ -143,7 +139,6 @@ export const ZeDeliverySimulator: React.FC = () => {
     return (
       <GameLogin
         onLogin={handleLogin}
-        onGuestLogin={handleGuestLogin}
         error={loginError}
         loading={loginLoading}
       />
@@ -159,11 +154,60 @@ export const ZeDeliverySimulator: React.FC = () => {
       <div className="container mx-auto p-4 max-w-7xl space-y-6">
         {/* Game HUD */}
         <GameHUD
-          userEmail={gameState.currentUser}
+          playerName={currentPlayer?.name || gameState.currentUser || "Jogador"}
+          playerCode={currentPlayer?.code}
           stats={gameState.stats}
           kpis={gameState.kpis}
           onSettingsClick={() => setShowSettings(true)}
         />
+
+        <Card className="p-6 bg-card/60 border-border/50 backdrop-blur-sm">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-semibold text-foreground">Objetivo do simulador</h2>
+              <p className="text-muted-foreground leading-relaxed">
+                Aqui você pratica, passo a passo, o atendimento ideal do parceiro Zé Delivery. Em cada ponto do mapa, basta seguir os três passos abaixo.
+              </p>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
+                <span className="text-2xl" role="img" aria-label="Abrir aula">📍</span>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">1. Abra a aula</p>
+                  <p className="text-sm text-muted-foreground">Clique ou toque no ponto do mapa para assistir ao conteúdo daquele tema.</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
+                <span className="text-2xl" role="img" aria-label="Assistir video">▶️</span>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">2. Veja o vídeo até o final</p>
+                  <p className="text-sm text-muted-foreground">O botão da pergunta aparece sozinho quando a barra de progresso chega ao fim.</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
+                <span className="text-2xl" role="img" aria-label="Responder pergunta">✅</span>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">3. Responda com calma</p>
+                  <p className="text-sm text-muted-foreground">Use o que acabou de aprender. Se errar, o ponto fica vermelho e você pode tentar de novo.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="p-3 rounded-lg bg-bg-tertiary/60 border border-border/30 text-sm text-muted-foreground">
+                <p className="font-semibold text-foreground mb-1">Resultados em tempo real</p>
+                <p>Os cartões acima mostram suas vidas, pontos e indicadores. Cada acerto melhora sua pontuação; cada erro gasta uma vida.</p>
+              </div>
+              <div className="p-3 rounded-lg bg-bg-tertiary/60 border border-border/30 text-sm text-muted-foreground">
+                <p className="font-semibold text-foreground mb-1">Certificado ao final</p>
+                <p>Complete todos os 15 checkpoints verdes para receber o certificado com seu nome e código.</p>
+              </div>
+            </div>
+          </div>
+        </Card>
 
         {/* Game Map */}
         <div className="flex justify-center">
@@ -218,7 +262,7 @@ export const ZeDeliverySimulator: React.FC = () => {
         }}
         playerData={{
           name: currentPlayer?.name || gameState.currentUser || "Jogador",
-          email: currentPlayer?.email || "jogador@example.com",
+          code: currentPlayer?.code || "Sem código",
           score: gameState.stats.score,
           totalTime: (() => {
             const timeStr = gameState.stats.sessionTime;
