@@ -6,15 +6,18 @@ interface Position {
   y: number;
 }
 
+interface GameMapCheckpoint {
+  id: number;
+  x: number;
+  y: number;
+  completed: boolean;
+  status: "pending" | "completed" | "failed";
+}
+
 interface GameMapProps {
   playerPosition: Position;
   onPositionChange: (position: Position) => void;
-  checkpoints: Array<{
-    id: number;
-    x: number;
-    y: number;
-    completed: boolean;
-  }>;
+  checkpoints: GameMapCheckpoint[];
   onCheckpointReach: (checkpointId: number) => void;
 }
 
@@ -73,7 +76,7 @@ export const GameMap: React.FC<GameMapProps> = ({
 
       // Check for checkpoint collision
       const checkpoint = checkpoints.find(
-        (cp) => cp.x === newX && cp.y === newY && !cp.completed
+        (cp) => cp.x === newX && cp.y === newY && cp.status !== "completed"
       );
       if (checkpoint) {
         onCheckpointReach(checkpoint.id);
@@ -95,17 +98,22 @@ export const GameMap: React.FC<GameMapProps> = ({
     
     let tileContent = null;
     let tileClasses = "w-[var(--tile-size)] h-[var(--tile-size)] border border-border/20 transition-all duration-200 flex items-center justify-center text-lg font-bold";
-    
+
     if (isRoad) {
       tileClasses += " bg-game-road";
-      
+
       if (isPlayer) {
         tileContent = "🏍️";
         tileClasses += " animate-pulse-glow";
       } else if (checkpoint) {
-        if (checkpoint.completed) {
+        tileClasses += " cursor-pointer";
+
+        if (checkpoint.status === "completed") {
           tileContent = "✅";
           tileClasses += " bg-ze-green text-primary-foreground";
+        } else if (checkpoint.status === "failed") {
+          tileContent = "❌";
+          tileClasses += " bg-ze-red text-primary-foreground";
         } else {
           tileContent = "📦";
           tileClasses += " bg-game-checkpoint text-primary-foreground animate-float";
@@ -124,6 +132,11 @@ export const GameMap: React.FC<GameMapProps> = ({
         key={`${y}-${x}`}
         className={tileClasses}
         onClick={() => {
+          if (checkpoint) {
+            onCheckpointReach(checkpoint.id);
+            return;
+          }
+
           if (isRoad) {
             onPositionChange({ x, y });
           }
@@ -173,6 +186,9 @@ export const GameMap: React.FC<GameMapProps> = ({
           </span>
           <span className="flex items-center gap-1">
             <span>📦</span> Checkpoint
+          </span>
+          <span className="flex items-center gap-1">
+            <span>❌</span> Revisar conteúdo
           </span>
           <span className="flex items-center gap-1">
             <span>✅</span> Concluído

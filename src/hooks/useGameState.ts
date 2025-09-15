@@ -26,6 +26,8 @@ interface GameSettings {
   speed: number;
 }
 
+type CheckpointStatus = "pending" | "completed" | "failed";
+
 interface CheckpointData {
   id: number;
   x: number;
@@ -38,6 +40,7 @@ interface CheckpointData {
   hint: string;
   type?: "text" | "multiple";
   completed: boolean;
+  status: CheckpointStatus;
 }
 
 interface GameState {
@@ -59,7 +62,7 @@ interface GameState {
   totalQuestions: number;
 }
 
-const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
+const INITIAL_CHECKPOINTS: Omit<CheckpointData, "completed" | "status">[] = [
   // Checkpoint 1: Gestão de Tempo e Disponibilidade
   { 
     id: 0, x: 3, y: 2, 
@@ -264,7 +267,7 @@ export const useGameState = () => {
       animations: true,
       speed: 1
     },
-    checkpoints: INITIAL_CHECKPOINTS.map(cp => ({ ...cp, completed: false })),
+    checkpoints: INITIAL_CHECKPOINTS.map(cp => ({ ...cp, completed: false, status: "pending" })),
     correctAnswers: 0,
     totalQuestions: 0
   });
@@ -322,13 +325,23 @@ export const useGameState = () => {
 
   const answerCheckpoint = useCallback((checkpointId: number, isCorrect: boolean) => {
     setGameState(prev => {
-      const newCheckpoints = prev.checkpoints.map(cp =>
-        cp.id === checkpointId ? { ...cp, completed: true } : cp
-      );
+      const newCheckpoints = prev.checkpoints.map(cp => {
+        if (cp.id !== checkpointId) {
+          return cp;
+        }
+
+        const nextStatus: CheckpointStatus = isCorrect ? "completed" : "failed";
+
+        return {
+          ...cp,
+          completed: isCorrect,
+          status: nextStatus,
+        };
+      });
 
       const newStats = {
         ...prev.stats,
-        completedTasks: newCheckpoints.filter(cp => cp.completed).length,
+        completedTasks: newCheckpoints.filter(cp => cp.status === "completed").length,
         score: prev.stats.score + (isCorrect ? 100 : 0),
         lives: isCorrect ? prev.stats.lives : Math.max(0, prev.stats.lives - 1)
       };
@@ -377,7 +390,7 @@ export const useGameState = () => {
         tempoEntrega: 70,
         avaliacao: 70
       },
-      checkpoints: INITIAL_CHECKPOINTS.map(cp => ({ ...cp, completed: false })),
+      checkpoints: INITIAL_CHECKPOINTS.map(cp => ({ ...cp, completed: false, status: "pending" })),
       correctAnswers: 0,
       totalQuestions: 0,
       sessionStartTime: Date.now()
