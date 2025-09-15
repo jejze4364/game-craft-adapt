@@ -4,15 +4,22 @@ import { GameMap } from "./GameMap";
 import { GameHUD } from "./GameHUD";
 import { CheckpointModal } from "./CheckpointModal";
 import { SettingsModal } from "./SettingsModal";
+import { CertificateModal } from "./CertificateModal";
 import { useGameState } from "@/hooks/useGameState";
+import { useDatabase } from "@/hooks/useDatabase";
 import { toast } from "sonner";
 
 export const ZeDeliverySimulator: React.FC = () => {
   const { gameState, actions } = useGameState();
+  const { savePlayer, saveGameSession, saveCheckpointProgress } = useDatabase();
   const [currentCheckpoint, setCurrentCheckpoint] = useState<number | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showCertificate, setShowCertificate] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
+  const [currentPlayer, setCurrentPlayer] = useState<{ id: string; email: string; name?: string } | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [checkpointStartTime, setCheckpointStartTime] = useState<number>(Date.now());
 
   const handleLogin = async (email: string, password: string) => {
     setLoginLoading(true);
@@ -26,8 +33,15 @@ export const ZeDeliverySimulator: React.FC = () => {
         throw new Error("Senha deve ter pelo menos 6 caracteres");
       }
 
-      actions.startGame(email);
-      toast.success(`Bem-vindo, ${email.split('@')[0]}!`);
+      // Save player to database
+      const player = await savePlayer(email, email.split('@')[0]);
+      if (player) {
+        setCurrentPlayer(player);
+        actions.startGame(email);
+        toast.success(`Bem-vindo, ${email.split('@')[0]}!`);
+      } else {
+        throw new Error("Erro ao salvar dados do jogador");
+      }
     } catch (error) {
       setLoginError(error instanceof Error ? error.message : "Erro no login");
     } finally {
@@ -35,22 +49,36 @@ export const ZeDeliverySimulator: React.FC = () => {
     }
   };
 
-  const handleGuestLogin = () => {
-    actions.startGame("Convidado");
-    toast.success("Bem-vindo, Convidado!");
+  const handleGuestLogin = async () => {
+    // Save guest player to database
+    const guestEmail = `convidado_${Date.now()}@guest.com`;
+    const player = await savePlayer(guestEmail, "Convidado");
+    if (player) {
+      setCurrentPlayer(player);
+      actions.startGame("Convidado");
+      toast.success("Bem-vindo, Convidado!");
+    }
   };
 
   const handleCheckpointReach = (checkpointId: number) => {
     const checkpoint = gameState.checkpoints.find(cp => cp.id === checkpointId);
     if (checkpoint && !checkpoint.completed) {
       setCurrentCheckpoint(checkpointId);
+      setCheckpointStartTime(Date.now());
       toast.info("Checkpoint encontrado! Responda a questão educativa.");
     }
   };
 
-  const handleAnswer = (checkpointId: number, isCorrect: boolean) => {
+  const handleAnswer = async (checkpointId: number, isCorrect: boolean) => {
+    const timeTaken = Math.floor((Date.now() - checkpointStartTime) / 1000);
+    
     actions.answerCheckpoint(checkpointId, isCorrect);
     setCurrentCheckpoint(null);
+    
+    // Save checkpoint progress to database
+    if (currentSessionId) {
+      await saveCheckpointProgress(currentSessionId, checkpointId, isCorrect, timeTaken);
+    }
     
     if (isCorrect) {
       toast.success("Resposta correta! +100 pontos e KPIs melhorados!");
@@ -60,18 +88,53 @@ export const ZeDeliverySimulator: React.FC = () => {
 
     // Check game over
     if (gameState.stats.lives <= 1 && !isCorrect) {
-      setTimeout(() => {
+      setTimeout(async () => {
         toast.error("Game Over! Suas vidas acabaram.");
+        await saveGameData(false);
         actions.resetGame();
+        setCurrentSessionId(null);
       }, 2000);
     }
 
-    // Check victory
-    const completedCount = gameState.checkpoints.filter(cp => cp.completed).length;
-    if (completedCount === gameState.checkpoints.length && isCorrect) {
-      setTimeout(() => {
+    // Check victory - need to check the updated state
+    const updatedCompletedCount = gameState.checkpoints.filter(cp => 
+      cp.completed || cp.id === checkpointId
+    ).length;
+    
+    if (updatedCompletedCount === gameState.checkpoints.length && isCorrect) {
+      setTimeout(async () => {
         toast.success("🎉 Parabéns! Você completou todos os 15 checkpoints do simulador!");
+        await saveGameData(true);
+        setShowCertificate(true);
       }, 2000);
+    }
+  };
+
+  const saveGameData = async (isCompleted: boolean) => {
+    if (!currentPlayer) return;
+
+    // Convert sessionTime from string format "Xm Ys" to seconds
+    const timeInSeconds = (() => {
+      const timeStr = gameState.stats.sessionTime;
+      const minutes = parseInt(timeStr.match(/(\d+)m/)?.[1] || '0', 10);
+      const seconds = parseInt(timeStr.match(/(\d+)s/)?.[1] || '0', 10);
+      return minutes * 60 + seconds;
+    })();
+
+    const gameData = {
+      score: gameState.stats.score,
+      lives_used: 5 - gameState.stats.lives,
+      total_time: timeInSeconds,
+      completed_checkpoints: gameState.checkpoints.filter(cp => cp.completed).length,
+      accuracy_percentage: gameState.kpis.disponibilidade,
+      delivery_efficiency: gameState.kpis.aceitacao,
+      customer_satisfaction: gameState.kpis.avaliacao,
+      is_completed: isCompleted
+    };
+
+    const session = await saveGameSession(currentPlayer.id, gameData);
+    if (session && !currentSessionId) {
+      setCurrentSessionId(session.id);
     }
   };
 
@@ -144,6 +207,29 @@ export const ZeDeliverySimulator: React.FC = () => {
         onClose={() => setShowSettings(false)}
         settings={gameState.settings}
         onSettingsChange={actions.updateSettings}
+      />
+
+      <CertificateModal
+        isOpen={showCertificate}
+        onClose={() => {
+          setShowCertificate(false);
+          actions.resetGame();
+          setCurrentSessionId(null);
+        }}
+        playerData={{
+          name: currentPlayer?.name || gameState.currentUser || "Jogador",
+          email: currentPlayer?.email || "jogador@example.com",
+          score: gameState.stats.score,
+          totalTime: (() => {
+            const timeStr = gameState.stats.sessionTime;
+            const minutes = parseInt(timeStr.match(/(\d+)m/)?.[1] || '0', 10);
+            const seconds = parseInt(timeStr.match(/(\d+)s/)?.[1] || '0', 10);
+            return minutes * 60 + seconds;
+          })(),
+          accuracy: gameState.kpis.disponibilidade,
+          deliveryEfficiency: gameState.kpis.aceitacao,
+          customerSatisfaction: gameState.kpis.avaliacao
+        }}
       />
     </div>
   );

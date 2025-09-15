@@ -14,7 +14,115 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      checkpoints_progress: {
+        Row: {
+          answered_correctly: boolean
+          checkpoint_id: number
+          completed_at: string
+          id: string
+          session_id: string
+          time_taken: number
+        }
+        Insert: {
+          answered_correctly: boolean
+          checkpoint_id: number
+          completed_at?: string
+          id?: string
+          session_id: string
+          time_taken?: number
+        }
+        Update: {
+          answered_correctly?: boolean
+          checkpoint_id?: number
+          completed_at?: string
+          id?: string
+          session_id?: string
+          time_taken?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkpoints_progress_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "game_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_sessions: {
+        Row: {
+          accuracy_percentage: number
+          completed_at: string
+          completed_checkpoints: number
+          customer_satisfaction: number
+          delivery_efficiency: number
+          id: string
+          is_completed: boolean
+          lives_used: number
+          player_id: string
+          score: number
+          total_time: number
+        }
+        Insert: {
+          accuracy_percentage?: number
+          completed_at?: string
+          completed_checkpoints?: number
+          customer_satisfaction?: number
+          delivery_efficiency?: number
+          id?: string
+          is_completed?: boolean
+          lives_used?: number
+          player_id: string
+          score?: number
+          total_time?: number
+        }
+        Update: {
+          accuracy_percentage?: number
+          completed_at?: string
+          completed_checkpoints?: number
+          customer_satisfaction?: number
+          delivery_efficiency?: number
+          id?: string
+          is_completed?: boolean
+          lives_used?: number
+          player_id?: string
+          score?: number
+          total_time?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_sessions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
