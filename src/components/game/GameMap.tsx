@@ -116,7 +116,7 @@ export const GameMap: React.FC<GameMapProps> = ({
           tileClasses += " bg-ze-red text-primary-foreground";
         } else {
           tileContent = "📦";
-          tileClasses += " bg-game-checkpoint text-primary-foreground animate-float";
+          tileClasses += " bg-game-checkpoint text-primary-foreground";
         }
       } else if (x === 2 && y === 6) {
         // Store position

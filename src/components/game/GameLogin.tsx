@@ -28,7 +28,6 @@ export const GameLogin: React.FC<GameLoginProps> = ({
     if (!id.trim() || !name.trim()) return;
 
     if (password !== FIXED_PASSWORD) {
-      // Mostra erro local sem depender do parent
       const alertEl = document.getElementById("login-alert");
       if (alertEl) alertEl.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
@@ -51,14 +50,17 @@ export const GameLogin: React.FC<GameLoginProps> = ({
             </span>
           </h1>
           <p className="text-muted-foreground">
-            Aprenda na prática as melhores práticas do delivery
+            Preencha os três passos simples para iniciar o treinamento
           </p>
         </div>
 
         {/* Login Card */}
         <Card className="p-8 bg-card/80 backdrop-blur-sm border-border/50 shadow-xl animate-slide-in-up">
-          {(error || password && password !== FIXED_PASSWORD) && (
-            <Alert id="login-alert" className="mb-6 border-destructive/50 bg-destructive/10 animate-shake">
+          {(error || (password && password !== FIXED_PASSWORD)) && (
+            <Alert
+              id="login-alert"
+              className="mb-6 border-destructive/50 bg-destructive/10 animate-shake"
+            >
               <AlertDescription className="text-destructive-foreground">
                 {password && password !== FIXED_PASSWORD
                   ? "Senha inválida. Dica: a senha padrão é ze2025."
@@ -69,12 +71,13 @@ export const GameLogin: React.FC<GameLoginProps> = ({
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="id" className="text-sm font-medium">
-                ID
+              <Label htmlFor="id" className="text-sm font-semibold">
+                1. Digite o seu código de participante
               </Label>
               <Input
                 id="id"
-                placeholder="ex.: 12345"
+                type="text"
+                placeholder="Ex.: 12345"
                 value={id}
                 onChange={(e) => setId(e.target.value)}
                 className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20"
@@ -83,17 +86,18 @@ export const GameLogin: React.FC<GameLoginProps> = ({
                 required
               />
               <p className="text-xs text-muted-foreground">
-                Use seu ID interno (será mapeado para email sintético).
+                Esse código identifica o seu resultado no relatório final.
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm font-medium">
-                Nome
+              <Label htmlFor="name" className="text-sm font-semibold">
+                2. Escreva seu nome completo
               </Label>
               <Input
                 id="name"
-                placeholder="Seu nome"
+                type="text"
+                placeholder="Como você quer aparecer no certificado"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20"
@@ -101,11 +105,14 @@ export const GameLogin: React.FC<GameLoginProps> = ({
                 autoComplete="name"
                 required
               />
+              <p className="text-xs text-muted-foreground">
+                Use letras maiúsculas e minúsculas se preferir, será exibido exatamente assim.
+              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">
-                Senha
+              <Label htmlFor="password" className="text-sm font-semibold">
+                3. Confirme a senha padrão do treinamento
               </Label>
               <Input
                 id="password"
@@ -135,32 +142,45 @@ export const GameLogin: React.FC<GameLoginProps> = ({
                     Entrando...
                   </div>
                 ) : (
-                  "Entrar"
+                  "Começar o treinamento"
                 )}
               </Button>
             </div>
           </form>
 
           <div className="mt-6 pt-4 border-t border-border/50">
-            <p className="text-xs text-center text-muted-foreground">
-              Primeiro acesso? A conta será criada automaticamente
-            </p>
+            <div className="grid gap-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-3 bg-bg-tertiary/60 border border-border/40 rounded-lg p-3">
+                <span className="text-xl">🖱️</span>
+                <div>
+                  <p className="font-semibold text-foreground">Use o mouse ou o dedo</p>
+                  <p>Depois do login, clique nos pontos do mapa para abrir as aulas.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-bg-tertiary/60 border border-border/40 rounded-lg p-3">
+                <span className="text-xl">🎧</span>
+                <div>
+                  <p className="font-semibold text-foreground">Assista até o fim</p>
+                  <p>O vídeo precisa terminar para liberar a pergunta.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </Card>
 
         {/* Game Features */}
         <div className="grid grid-cols-3 gap-4 text-center">
           <div className="space-y-1">
-            <div className="text-2xl">📚</div>
-            <div className="text-xs text-muted-foreground">15 Lições</div>
+            <div className="text-2xl">1️⃣</div>
+            <div className="text-xs text-muted-foreground">Clique em um ponto</div>
           </div>
           <div className="space-y-1">
-            <div className="text-2xl">📊</div>
-            <div className="text-xs text-muted-foreground">KPIs Reais</div>
+            <div className="text-2xl">2️⃣</div>
+            <div className="text-xs text-muted-foreground">Assista ao vídeo</div>
           </div>
           <div className="space-y-1">
-            <div className="text-2xl">🏆</div>
-            <div className="text-xs text-muted-foreground">Gamificação</div>
+            <div className="text-2xl">3️⃣</div>
+            <div className="text-xs text-muted-foreground">Responda com calma</div>
           </div>
         </div>
       </div>

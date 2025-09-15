@@ -308,10 +308,10 @@ export const useGameState = () => {
     }));
   }, [gameState.correctAnswers, gameState.totalQuestions]);
 
-  const startGame = useCallback((userEmail: string) => {
+  const startGame = useCallback((playerName: string) => {
     setGameState(prev => ({
       ...prev,
-      currentUser: userEmail,
+      currentUser: playerName,
       sessionStartTime: Date.now(),
     }));
   }, []);

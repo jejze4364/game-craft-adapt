@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface Player {
   id: string;
-  email: string;
+  code: string; // mapeia para players.email
   name?: string;
 }
 
@@ -19,34 +19,67 @@ export interface GameSession {
   customer_satisfaction: number;
   completed_at: string | null;
   is_completed: boolean;
+  players?: {
+    email: string;
+    name?: string;
+  };
 }
+
+// converte o formato do banco para o Player usado no app
+const mapPlayer = (dbPlayer: { id: string; email: string; name?: string } | null): Player | null => {
+  if (!dbPlayer) return null;
+  return {
+    id: dbPlayer.id,
+    code: dbPlayer.email,
+    name: dbPlayer.name ?? undefined,
+  };
+};
 
 export const useDatabase = () => {
   const [loading, setLoading] = useState(false);
 
-  const savePlayer = async (email: string, name?: string): Promise<Player | null> => {
+  // playerCode é o "email sintético" (<id>@local)
+  const savePlayer = async (playerCode: string, name?: string): Promise<Player | null> => {
     try {
       setLoading(true);
 
-      // Tenta buscar
-      const { data: existingPlayer, error: selErr } = await supabase
+      // Busca jogador existente
+      const { data: existingPlayer, error: fetchError } = await supabase
         .from('players')
         .select('*')
-        .eq('email', email)
+        .eq('email', playerCode)
         .maybeSingle();
 
-      if (selErr) throw selErr;
-      if (existingPlayer) return existingPlayer as Player;
+      // Se vier um erro diferente de "no rows", propaga
+      if (fetchError && (fetchError as any).code !== 'PGRST116') {
+        throw fetchError;
+      }
 
-      // Cria novo
+      if (existingPlayer) {
+        // Atualiza o nome se mudou
+        if (name && existingPlayer.name !== name) {
+          const { data: updatedPlayer, error: updateError } = await supabase
+            .from('players')
+            .update({ name })
+            .eq('id', existingPlayer.id)
+            .select()
+            .single();
+
+          if (updateError) throw updateError;
+          return mapPlayer(updatedPlayer);
+        }
+        return mapPlayer(existingPlayer);
+      }
+
+      // Cria novo jogador
       const { data: newPlayer, error } = await supabase
         .from('players')
-        .insert([{ email, name }])
+        .insert([{ email: playerCode, name }])
         .select()
         .single();
 
       if (error) throw error;
-      return newPlayer as Player;
+      return mapPlayer(newPlayer);
     } catch (error) {
       console.error('Error saving player:', error);
       return null;
@@ -55,7 +88,7 @@ export const useDatabase = () => {
     }
   };
 
-  // NOVO: cria sessão vazia no login (para já registrar checkpoints)
+  // Cria sessão vazia no login (para já registrar checkpoints)
   const createSession = async (playerId: string): Promise<GameSession | null> => {
     try {
       setLoading(true);
@@ -85,7 +118,7 @@ export const useDatabase = () => {
     }
   };
 
-  // Mantido: insert de sessão completa (usado como fallback)
+  // Insert de sessão completa (fallback, se não houve createSession)
   const saveGameSession = async (
     playerId: string,
     gameData: {
@@ -118,7 +151,7 @@ export const useDatabase = () => {
     }
   };
 
-  // NOVO: atualização da sessão aberta (para finalizar com KPIs/tempo/score)
+  // Atualiza a sessão aberta com KPIs/tempo/score (finalização)
   const updateGameSession = async (
     sessionId: string,
     gameData: Partial<Pick<GameSession,
@@ -146,6 +179,7 @@ export const useDatabase = () => {
     }
   };
 
+  // Grava cada resposta de checkpoint
   const saveCheckpointProgress = async (
     sessionId: string,
     checkpointId: number,
@@ -168,6 +202,7 @@ export const useDatabase = () => {
     }
   };
 
+  // Lista sessões concluídas (para relatórios/leaderboard)
   const getCompletedSessions = async (): Promise<GameSession[]> => {
     try {
       const { data, error } = await supabase
@@ -193,8 +228,8 @@ export const useDatabase = () => {
   return {
     loading,
     savePlayer,
-    createSession,          // <- novo
-    updateGameSession,      // <- novo
+    createSession,
+    updateGameSession,
     saveGameSession,
     saveCheckpointProgress,
     getCompletedSessions
