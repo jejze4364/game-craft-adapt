@@ -129,7 +129,7 @@ export const ZeDeliverySimulator: React.FC = () => {
 
     const payload = {
       score: gameState.stats.score,
-      lives_used: 5 - gameState.stats.lives, // ajuste se preferir base 3
+      lives_used: 3 - gameState.stats.lives, // vidas usadas (inicial = 3)
       total_time: timeInSeconds,
       completed_checkpoints: gameState.checkpoints.filter((cp) => cp.completed).length,
       accuracy_percentage: gameState.kpis.disponibilidade,
@@ -294,7 +294,7 @@ export const ZeDeliverySimulator: React.FC = () => {
         }}
         playerData={{
           name: currentPlayer?.name || gameState.currentUser || "Jogador",
-          email: currentPlayer?.email || "jogador@example.com",
+          email: currentPlayer?.code || "jogador@local",
           score: gameState.stats.score,
           totalTime: (() => {
             const parts = gameState.stats.sessionTime.split(":");

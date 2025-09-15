@@ -69,6 +69,13 @@ export const GameLogin: React.FC<GameLoginProps> = ({
             </Alert>
           )}
 
+          <div className="mb-6 rounded-lg border border-border/40 bg-bg-tertiary/50 p-3 text-sm text-muted-foreground">
+            <p className="font-semibold text-foreground">Login simples com senha fixa.</p>
+            <p>
+              Informe seu código, nome e a senha padrão para registrar seu resultado corretamente.
+            </p>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="id" className="text-sm font-semibold">
