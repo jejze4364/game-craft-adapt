@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface Player {
   id: string;
-  email: string;
+  code: string;
   name?: string;
 }
 
@@ -19,35 +19,63 @@ export interface GameSession {
   customer_satisfaction: number;
   completed_at: string;
   is_completed: boolean;
+  players?: {
+    email: string;
+    name?: string;
+  };
 }
+
+const mapPlayer = (dbPlayer: { id: string; email: string; name?: string } | null): Player | null => {
+  if (!dbPlayer) return null;
+  return {
+    id: dbPlayer.id,
+    code: dbPlayer.email,
+    name: dbPlayer.name ?? undefined,
+  };
+};
 
 export const useDatabase = () => {
   const [loading, setLoading] = useState(false);
 
-  const savePlayer = async (email: string, name?: string): Promise<Player | null> => {
+  const savePlayer = async (playerCode: string, name?: string): Promise<Player | null> => {
     try {
       setLoading(true);
-      
+
       // Check if player already exists
-      const { data: existingPlayer } = await supabase
+      const { data: existingPlayer, error: fetchError } = await supabase
         .from('players')
         .select('*')
-        .eq('email', email)
-        .single();
+        .eq('email', playerCode)
+        .maybeSingle();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        throw fetchError;
+      }
 
       if (existingPlayer) {
-        return existingPlayer;
+        if (name && existingPlayer.name !== name) {
+          const { data: updatedPlayer, error: updateError } = await supabase
+            .from('players')
+            .update({ name })
+            .eq('id', existingPlayer.id)
+            .select()
+            .single();
+
+          if (updateError) throw updateError;
+          return mapPlayer(updatedPlayer);
+        }
+        return mapPlayer(existingPlayer);
       }
 
       // Create new player
       const { data: newPlayer, error } = await supabase
         .from('players')
-        .insert([{ email, name }])
+        .insert([{ email: playerCode, name }])
         .select()
         .single();
 
       if (error) throw error;
-      return newPlayer;
+      return mapPlayer(newPlayer);
     } catch (error) {
       console.error('Error saving player:', error);
       return null;
