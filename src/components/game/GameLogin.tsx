@@ -6,26 +6,35 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface GameLoginProps {
-  onLogin: (email: string, password: string) => void;
-  onGuestLogin: () => void;
+  onLogin: (args: { id: string; name: string }) => void;
   error?: string;
   loading?: boolean;
 }
 
+const FIXED_PASSWORD = "ze2025";
+
 export const GameLogin: React.FC<GameLoginProps> = ({
   onLogin,
-  onGuestLogin,
   error,
   loading = false
 }) => {
-  const [email, setEmail] = useState("");
+  const [id, setId] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email.trim() && password.trim()) {
-      onLogin(email.trim(), password);
+
+    if (!id.trim() || !name.trim()) return;
+
+    if (password !== FIXED_PASSWORD) {
+      // Mostra erro local sem depender do parent
+      const alertEl = document.getElementById("login-alert");
+      if (alertEl) alertEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
     }
+
+    onLogin({ id: id.trim(), name: name.trim() });
   };
 
   return (
@@ -48,32 +57,50 @@ export const GameLogin: React.FC<GameLoginProps> = ({
 
         {/* Login Card */}
         <Card className="p-8 bg-card/80 backdrop-blur-sm border-border/50 shadow-xl animate-slide-in-up">
-          {error && (
-            <Alert className="mb-6 border-destructive/50 bg-destructive/10 animate-shake">
+          {(error || password && password !== FIXED_PASSWORD) && (
+            <Alert id="login-alert" className="mb-6 border-destructive/50 bg-destructive/10 animate-shake">
               <AlertDescription className="text-destructive-foreground">
-                {error}
+                {password && password !== FIXED_PASSWORD
+                  ? "Senha inválida. Dica: a senha padrão é ze2025."
+                  : error}
               </AlertDescription>
             </Alert>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
-                Email
+              <Label htmlFor="id" className="text-sm font-medium">
+                ID
               </Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="id"
+                placeholder="ex.: 12345"
+                value={id}
+                onChange={(e) => setId(e.target.value)}
                 className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20"
                 disabled={loading}
-                autoComplete="email"
+                autoComplete="off"
+                required
               />
               <p className="text-xs text-muted-foreground">
-                Use seu email para salvar o progresso
+                Use seu ID interno (será mapeado para email sintético).
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-sm font-medium">
+                Nome
+              </Label>
+              <Input
+                id="name"
+                placeholder="Seu nome"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20"
+                disabled={loading}
+                autoComplete="name"
+                required
+              />
             </div>
 
             <div className="space-y-2">
@@ -83,24 +110,24 @@ export const GameLogin: React.FC<GameLoginProps> = ({
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="Digite a senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20"
                 disabled={loading}
                 autoComplete="current-password"
-                minLength={6}
+                required
               />
               <p className="text-xs text-muted-foreground">
-                Mínimo 6 caracteres
+                Senha padrão: <span className="font-mono">ze2025</span>
               </p>
             </div>
 
-            <div className="space-y-3 pt-2">
-              <Button 
-                type="submit" 
+            <div className="pt-2">
+              <Button
+                type="submit"
                 className="w-full bg-gradient-primary hover:shadow-glow-strong transition-all duration-200 hover:-translate-y-0.5 font-semibold"
-                disabled={loading || !email.trim() || !password.trim()}
+                disabled={loading || !id.trim() || !name.trim() || !password.trim()}
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
@@ -110,17 +137,6 @@ export const GameLogin: React.FC<GameLoginProps> = ({
                 ) : (
                   "Entrar"
                 )}
-              </Button>
-
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full bg-bg-tertiary hover:bg-bg-elevated border-border hover:border-border/80 transition-all duration-200"
-                onClick={onGuestLogin}
-                disabled={loading}
-              >
-                <span className="mr-2">👤</span>
-                Jogar como Convidado
               </Button>
             </div>
           </form>
