@@ -71,3 +71,15 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Configurando o Firebase
+
+Para guardar os dados dos participantes e sessões na nuvem, crie um arquivo `.env` na raiz com as variáveis abaixo (substitua pelos valores do seu projeto Firebase):
+
+```env
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_DATABASE_ID=(default)
+```
+
+Se algum desses valores não estiver configurado, o simulador continua funcionando apenas com armazenamento local, mantendo os registros no navegador até que a página seja limpa.

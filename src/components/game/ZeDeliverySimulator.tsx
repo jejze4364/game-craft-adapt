@@ -128,7 +128,7 @@ export const ZeDeliverySimulator: React.FC = () => {
       is_completed: isCompleted
     };
 
-    const session = await saveGameSession(currentPlayer.id, gameData);
+    const session = await saveGameSession(currentPlayer, gameData);
     if (session && !currentSessionId) {
       setCurrentSessionId(session.id);
     }

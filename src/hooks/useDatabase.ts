@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+
+import {
+  firebaseClient,
+  type FirebasePlayerDocument,
+  type FirebaseSessionDocument,
+} from '@/integrations/firebase/client';
 
 export interface Player {
   id: string;
@@ -28,7 +33,7 @@ export interface GameSession {
 const LOCAL_STORAGE_KEYS = {
   players: 'ze-simulator.players',
   sessions: 'ze-simulator.sessions',
-  checkpoints: 'ze-simulator.checkpoints'
+  checkpoints: 'ze-simulator.checkpoints',
 } as const;
 
 type LocalPlayerRecord = {
@@ -99,7 +104,34 @@ const storeLocalCheckpoint = (record: LocalCheckpointRecord) => {
   writeLocalData(LOCAL_STORAGE_KEYS.checkpoints, current);
 };
 
-const savePlayerLocally = (playerCode: string, name?: string): Player | null => {
+const toNumber = (value: unknown, fallback = 0) => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? fallback : parsed;
+  }
+  return fallback;
+};
+
+const toBoolean = (value: unknown, fallback = false) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes';
+  }
+  return fallback;
+};
+
+const toStringOrUndefined = (value: unknown) =>
+  typeof value === 'string' && value.trim() !== '' ? value : undefined;
+
+const toStringOrNull = (value: unknown) => {
+  const stringValue = toStringOrUndefined(value);
+  return typeof stringValue === 'undefined' ? null : stringValue;
+};
+
+const ensureLocalPlayerRecord = (playerCode: string, name?: string): LocalPlayerRecord => {
   const now = new Date().toISOString();
   const players = getLocalPlayers();
   const existing = players.find(player => player.code === playerCode);
@@ -108,16 +140,11 @@ const savePlayerLocally = (playerCode: string, name?: string): Player | null => 
     const updated: LocalPlayerRecord = {
       ...existing,
       name: name ?? existing.name,
-      updated_at: now
+      updated_at: now,
     };
 
     storeLocalPlayers(players.map(player => (player.id === existing.id ? updated : player)));
-
-    return {
-      id: updated.id,
-      code: updated.code,
-      name: updated.name
-    };
+    return updated;
   }
 
   const newPlayer: LocalPlayerRecord = {
@@ -125,20 +152,25 @@ const savePlayerLocally = (playerCode: string, name?: string): Player | null => 
     code: playerCode,
     name,
     created_at: now,
-    updated_at: now
+    updated_at: now,
   };
 
   storeLocalPlayers([...players, newPlayer]);
+  return newPlayer;
+};
+
+const savePlayerLocally = (playerCode: string, name?: string): Player | null => {
+  const record = ensureLocalPlayerRecord(playerCode, name);
 
   return {
-    id: newPlayer.id,
-    code: newPlayer.code,
-    name: newPlayer.name
+    id: record.id,
+    code: record.code,
+    name: record.name,
   };
 };
 
 const saveSessionLocally = (
-  playerId: string,
+  player: Player,
   gameData: {
     score: number;
     lives_used: number;
@@ -152,20 +184,18 @@ const saveSessionLocally = (
 ): GameSession => {
   const now = new Date().toISOString();
   const sessionId = generateLocalId();
-  const players = getLocalPlayers();
-  const relatedPlayer = players.find(player => player.id === playerId);
+
+  const relatedPlayer = ensureLocalPlayerRecord(player.code, player.name);
 
   const session: GameSession = {
     id: sessionId,
-    player_id: playerId,
+    player_id: player.id,
     completed_at: gameData.is_completed ? now : null,
-    players: relatedPlayer
-      ? {
-          email: relatedPlayer.code,
-          name: relatedPlayer.name
-        }
-      : undefined,
-    ...gameData
+    players: {
+      email: relatedPlayer.code,
+      name: relatedPlayer.name ?? undefined,
+    },
+    ...gameData,
   };
 
   const sessions = getLocalSessions();
@@ -174,12 +204,49 @@ const saveSessionLocally = (
   return session;
 };
 
-const mapPlayer = (dbPlayer: { id: string; email: string; name?: string } | null): Player | null => {
-  if (!dbPlayer) return null;
+const mapFirebasePlayer = (
+  record: FirebasePlayerDocument,
+  fallback: { code: string; name?: string },
+) => {
+  const code = toStringOrUndefined(record.fields.code) ?? fallback.code;
+  const name = toStringOrUndefined(record.fields.name) ?? fallback.name;
+
+  const player: Player = {
+    id: record.id,
+    code,
+    ...(name ? { name } : {}),
+  };
+
   return {
-    id: dbPlayer.id,
-    code: dbPlayer.email,
-    name: dbPlayer.name ?? undefined,
+    player,
+    documentName: record.documentName,
+  };
+};
+
+const mapFirebaseSession = (record: FirebaseSessionDocument): GameSession | null => {
+  const fields = record.fields;
+  const playerId = toStringOrUndefined(fields.player_id);
+  if (!playerId) return null;
+
+  const email = toStringOrUndefined(fields.player_code) ?? playerId;
+  const name = toStringOrUndefined(fields.player_name);
+
+  return {
+    id: record.id,
+    player_id: playerId,
+    score: toNumber(fields.score),
+    lives_used: toNumber(fields.lives_used),
+    total_time: toNumber(fields.total_time),
+    completed_checkpoints: toNumber(fields.completed_checkpoints),
+    accuracy_percentage: toNumber(fields.accuracy_percentage),
+    delivery_efficiency: toNumber(fields.delivery_efficiency),
+    customer_satisfaction: toNumber(fields.customer_satisfaction),
+    completed_at: toStringOrNull(fields.completed_at),
+    is_completed: toBoolean(fields.is_completed, false),
+    players: {
+      email,
+      ...(name ? { name } : {}),
+    },
   };
 };
 
@@ -190,43 +257,40 @@ export const useDatabase = () => {
     try {
       setLoading(true);
 
-      // Check if player already exists
-      const { data: existingPlayer, error: fetchError } = await supabase
-        .from('players')
-        .select('*')
-        .eq('email', playerCode)
-        .maybeSingle();
-
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        throw fetchError;
+      if (!firebaseClient.isConfigured) {
+        return savePlayerLocally(playerCode, name);
       }
 
-      if (existingPlayer) {
-        if (name && existingPlayer.name !== name) {
-          const { data: updatedPlayer, error: updateError } = await supabase
-            .from('players')
-            .update({ name })
-            .eq('id', existingPlayer.id)
-            .select()
-            .single();
+      const existingRecord = await firebaseClient.findPlayerByCode(playerCode);
 
-          if (updateError) throw updateError;
-          return mapPlayer(updatedPlayer);
+      if (existingRecord) {
+        const existing = mapFirebasePlayer(existingRecord, { code: playerCode, name });
+
+        if (name && existing.player.name !== name) {
+          const updatedRecord = await firebaseClient.updatePlayer(existing.documentName, {
+            name,
+            updated_at: new Date().toISOString(),
+          }, ['name', 'updated_at']);
+
+          const updated = mapFirebasePlayer(updatedRecord, { code: existing.player.code, name });
+          return updated.player;
         }
-        return mapPlayer(existingPlayer);
+
+        return existing.player;
       }
 
-      // Create new player
-      const { data: newPlayer, error } = await supabase
-        .from('players')
-        .insert([{ email: playerCode, name }])
-        .select()
-        .single();
+      const now = new Date().toISOString();
+      const createdRecord = await firebaseClient.createPlayer({
+        code: playerCode,
+        name: name ?? null,
+        created_at: now,
+        updated_at: now,
+      });
 
-      if (error) throw error;
-      return mapPlayer(newPlayer);
+      const created = mapFirebasePlayer(createdRecord, { code: playerCode, name });
+      return created.player;
     } catch (error) {
-      console.warn('Não foi possível salvar o participante no Supabase. Registrando localmente.', error);
+      console.warn('Não foi possível salvar o participante no Firebase. Registrando localmente.', error);
       return savePlayerLocally(playerCode, name);
     } finally {
       setLoading(false);
@@ -234,7 +298,7 @@ export const useDatabase = () => {
   };
 
   const saveGameSession = async (
-    playerId: string,
+    player: Player,
     gameData: {
       score: number;
       lives_used: number;
@@ -249,17 +313,47 @@ export const useDatabase = () => {
     try {
       setLoading(true);
 
-      const { data: session, error } = await supabase
-        .from('game_sessions')
-        .insert([{ player_id: playerId, ...gameData }])
-        .select()
-        .single();
+      if (!firebaseClient.isConfigured) {
+        return saveSessionLocally(player, gameData);
+      }
 
-      if (error) throw error;
-      return session;
+      const now = new Date().toISOString();
+      const payload = {
+        player_id: player.id,
+        player_code: player.code,
+        player_name: player.name ?? null,
+        score: gameData.score,
+        lives_used: gameData.lives_used,
+        total_time: gameData.total_time,
+        completed_checkpoints: gameData.completed_checkpoints,
+        accuracy_percentage: gameData.accuracy_percentage,
+        delivery_efficiency: gameData.delivery_efficiency,
+        customer_satisfaction: gameData.customer_satisfaction,
+        completed_at: gameData.is_completed ? now : null,
+        is_completed: gameData.is_completed,
+        created_at: now,
+        updated_at: now,
+      };
+
+      const record = await firebaseClient.createSession(payload);
+      const mapped = mapFirebaseSession(record);
+      if (mapped) {
+        return mapped;
+      }
+
+      return {
+        id: record.id,
+        player_id: player.id,
+        players: {
+          email: player.code,
+          ...(player.name ? { name: player.name } : {}),
+        },
+        completed_at: payload.completed_at,
+        ...gameData,
+      };
     } catch (error) {
-      console.warn('Não foi possível registrar a sessão no Supabase. Salvando localmente.', error);
-      return saveSessionLocally(playerId, gameData);
+      console.warn('Não foi possível registrar a sessão no Firebase. Salvando localmente.', error);
+      return saveSessionLocally(player, gameData);
     } finally {
       setLoading(false);
     }
@@ -269,52 +363,56 @@ export const useDatabase = () => {
     sessionId: string,
     checkpointId: number,
     answeredCorrectly: boolean,
-    timeTaken: number
+    timeTaken: number,
   ) => {
     try {
-      const { error } = await supabase
-        .from('checkpoints_progress')
-        .insert([{
-          session_id: sessionId,
-          checkpoint_id: checkpointId,
-          answered_correctly: answeredCorrectly,
-          time_taken: timeTaken
-        }]);
+      if (!firebaseClient.isConfigured) {
+        throw new Error('Firebase não configurado');
+      }
 
-      if (error) throw error;
+      await firebaseClient.logCheckpoint({
+        session_id: sessionId,
+        checkpoint_id: checkpointId,
+        answered_correctly: answeredCorrectly,
+        time_taken: timeTaken,
+        created_at: new Date().toISOString(),
+      });
     } catch (error) {
-      console.warn('Não foi possível registrar o progresso do checkpoint no Supabase. Salvando localmente.', error);
+      console.warn('Não foi possível registrar o progresso do checkpoint no Firebase. Salvando localmente.', error);
       storeLocalCheckpoint({
         id: generateLocalId(),
         session_id: sessionId,
         checkpoint_id: checkpointId,
         answered_correctly: answeredCorrectly,
         time_taken: timeTaken,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       });
     }
   };
 
   const getCompletedSessions = async (): Promise<GameSession[]> => {
     try {
-      const { data, error } = await supabase
-        .from('game_sessions')
-        .select(`
-          *,
-          players (
-            email,
-            name
-          )
-        `)
-        .eq('is_completed', true)
-        .order('completed_at', { ascending: false });
+      if (!firebaseClient.isConfigured) {
+        throw new Error('Firebase não configurado');
+      }
 
-      if (error) throw error;
+      const records = await firebaseClient.listCompletedSessions();
+      const sessions = records
+        .map(mapFirebaseSession)
+        .filter((session): session is GameSession => session !== null);
 
       const localCompleted = getLocalSessions().filter(session => session.is_completed);
-      return [...(data || []), ...localCompleted];
+
+      const combined = [...sessions, ...localCompleted];
+      combined.sort((a, b) => {
+        const dateA = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+        const dateB = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      return combined;
     } catch (error) {
-      console.warn('Não foi possível carregar sessões do Supabase. Exibindo apenas os dados locais.', error);
+      console.warn('Não foi possível carregar sessões do Firebase. Exibindo apenas os dados locais.', error);
       return getLocalSessions().filter(session => session.is_completed);
     }
   };
@@ -324,6 +422,6 @@ export const useDatabase = () => {
     savePlayer,
     saveGameSession,
     saveCheckpointProgress,
-    getCompletedSessions
+    getCompletedSessions,
   };
 };
