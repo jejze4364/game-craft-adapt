@@ -20,16 +20,17 @@ interface KPIData {
 }
 
 interface GameHUDProps {
-  userEmail: string;
+  playerName: string;
+  playerCode?: string;
   stats: GameStats;
   kpis: KPIData;
   onSettingsClick: () => void;
 }
 
-const KPICard: React.FC<{ label: string; value: number; icon: string }> = ({ 
-  label, 
-  value, 
-  icon 
+const KPICard: React.FC<{ label: string; value: number; icon: string }> = ({
+  label,
+  value,
+  icon
 }) => {
   const getKPIColor = (value: number) => {
     if (value >= 90) return "text-ze-green";
@@ -53,9 +54,9 @@ const KPICard: React.FC<{ label: string; value: number; icon: string }> = ({
         {value}%
       </div>
       <div className="w-full bg-muted/30 rounded-full h-1 mt-1">
-        <div 
+        <div
           className={`h-1 rounded-full transition-all duration-500 ${
-            value >= 90 ? "bg-ze-green" : 
+            value >= 90 ? "bg-ze-green" :
             value >= 70 ? "bg-ze-yellow" : "bg-ze-red"
           }`}
           style={{ width: `${value}%` }}
@@ -66,7 +67,8 @@ const KPICard: React.FC<{ label: string; value: number; icon: string }> = ({
 };
 
 export const GameHUD: React.FC<GameHUDProps> = ({
-  userEmail,
+  playerName,
+  playerCode,
   stats,
   kpis,
   onSettingsClick
@@ -75,7 +77,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     <div className="space-y-4">
       {/* Header Stats */}
       <Card className="p-4 bg-card/50 backdrop-blur-sm border-border/50">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-6">
             {/* Lives */}
             <div className="flex items-center gap-2">
@@ -85,7 +87,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 <div className="text-xs text-muted-foreground">Vidas</div>
               </div>
             </div>
-            
+
             {/* Score */}
             <div className="flex items-center gap-2">
               <span className="text-2xl">⭐</span>
@@ -98,9 +100,16 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
           {/* User & Settings */}
           <div className="flex items-center gap-4">
-            <div className="text-right">
-              <div className="text-sm font-medium text-foreground">{userEmail}</div>
-              <div className="text-xs text-muted-foreground">Jogador</div>
+            <div className="text-right space-y-1">
+              <div className="text-sm font-semibold text-foreground">{playerName}</div>
+              {playerCode && (
+                <div className="flex justify-end">
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                    ID {playerCode}
+                  </Badge>
+                </div>
+              )}
+              <div className="text-xs text-muted-foreground">Jogador ativo</div>
             </div>
             <Button
               variant="ghost"
@@ -116,46 +125,46 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
       {/* KPI Grid */}
       <div>
-        <h3 className="text-lg font-semibold text-foreground mb-3">KPIs de Performance</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-3">Como está sua operação</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KPICard 
-            label="Disponibilidade" 
-            value={kpis.disponibilidade} 
-            icon="🕒" 
+          <KPICard
+            label="Disponibilidade"
+            value={kpis.disponibilidade}
+            icon="🕒"
           />
-          <KPICard 
-            label="Taxa Aceitação" 
-            value={kpis.aceitacao} 
-            icon="✅" 
+          <KPICard
+            label="Taxa Aceitação"
+            value={kpis.aceitacao}
+            icon="✅"
           />
-          <KPICard 
-            label="Tempo Entrega" 
-            value={kpis.tempoEntrega} 
-            icon="🚚" 
+          <KPICard
+            label="Tempo Entrega"
+            value={kpis.tempoEntrega}
+            icon="🚚"
           />
-          <KPICard 
-            label="Avaliação" 
-            value={kpis.avaliacao} 
-            icon="⭐" 
+          <KPICard
+            label="Avaliação"
+            value={kpis.avaliacao}
+            icon="⭐"
           />
         </div>
       </div>
 
       {/* Session Stats */}
       <Card className="p-4 bg-card/50 backdrop-blur-sm border-border/50">
-        <h3 className="text-lg font-semibold text-foreground mb-3">Estatísticas da Sessão</h3>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center">
+        <h3 className="text-lg font-semibold text-foreground mb-3">Resumo da sessão</h3>
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div>
             <div className="text-2xl font-bold text-ze-green">{stats.completedTasks}</div>
-            <div className="text-sm text-muted-foreground">Tarefas Concluídas</div>
+            <div className="text-sm text-muted-foreground">Checkpoints concluídos</div>
           </div>
-          <div className="text-center">
+          <div>
             <div className="text-2xl font-bold text-ze-blue">{stats.accuracy}%</div>
             <div className="text-sm text-muted-foreground">Precisão</div>
           </div>
-          <div className="text-center">
+          <div>
             <div className="text-2xl font-bold text-foreground">{stats.sessionTime}</div>
-            <div className="text-sm text-muted-foreground">Tempo de Jogo</div>
+            <div className="text-sm text-muted-foreground">Tempo de jogo</div>
           </div>
         </div>
       </Card>
