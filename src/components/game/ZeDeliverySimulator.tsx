@@ -8,6 +8,7 @@ import { CertificateModal } from "./CertificateModal";
 import { useGameState } from "@/hooks/useGameState";
 import { useDatabase } from "@/hooks/useDatabase";
 import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
 
 export const ZeDeliverySimulator: React.FC = () => {
   const { gameState, actions } = useGameState();
@@ -62,18 +63,26 @@ export const ZeDeliverySimulator: React.FC = () => {
 
   const handleCheckpointReach = (checkpointId: number) => {
     const checkpoint = gameState.checkpoints.find(cp => cp.id === checkpointId);
-    if (checkpoint && !checkpoint.completed) {
+    if (checkpoint && checkpoint.status !== "completed") {
       setCurrentCheckpoint(checkpointId);
       setCheckpointStartTime(Date.now());
-      toast.info("Checkpoint encontrado! Responda a questão educativa.");
+
+      const message = checkpoint.status === "failed"
+        ? "Revise o conteúdo com calma e tente responder novamente."
+        : "Checkpoint encontrado! Assista ao vídeo e responda à questão educativa.";
+
+      toast.info(message);
     }
   };
 
   const handleAnswer = async (checkpointId: number, isCorrect: boolean) => {
     const timeTaken = Math.floor((Date.now() - checkpointStartTime) / 1000);
-    
+
     actions.answerCheckpoint(checkpointId, isCorrect);
-    setCurrentCheckpoint(null);
+
+    if (isCorrect) {
+      setCurrentCheckpoint(null);
+    }
     
     // Save checkpoint progress to database
     if (currentSessionId) {
@@ -83,7 +92,7 @@ export const ZeDeliverySimulator: React.FC = () => {
     if (isCorrect) {
       toast.success("Resposta correta! +100 pontos e KPIs melhorados!");
     } else {
-      toast.error("Resposta incorreta. -1 vida e KPIs reduzidos.");
+      toast.error("Resposta incorreta. Você pode revisar e tentar de novo.");
     }
 
     // Check game over
@@ -97,8 +106,8 @@ export const ZeDeliverySimulator: React.FC = () => {
     }
 
     // Check victory - need to check the updated state
-    const updatedCompletedCount = gameState.checkpoints.filter(cp => 
-      cp.completed || cp.id === checkpointId
+    const updatedCompletedCount = gameState.checkpoints.filter(cp =>
+      cp.status === "completed" || (cp.id === checkpointId && isCorrect)
     ).length;
     
     if (updatedCompletedCount === gameState.checkpoints.length && isCorrect) {
@@ -125,7 +134,7 @@ export const ZeDeliverySimulator: React.FC = () => {
       score: gameState.stats.score,
       lives_used: 5 - gameState.stats.lives,
       total_time: timeInSeconds,
-      completed_checkpoints: gameState.checkpoints.filter(cp => cp.completed).length,
+      completed_checkpoints: gameState.checkpoints.filter(cp => cp.status === "completed").length,
       accuracy_percentage: gameState.kpis.disponibilidade,
       delivery_efficiency: gameState.kpis.aceitacao,
       customer_satisfaction: gameState.kpis.avaliacao,
@@ -164,6 +173,35 @@ export const ZeDeliverySimulator: React.FC = () => {
           kpis={gameState.kpis}
           onSettingsClick={() => setShowSettings(true)}
         />
+
+        <Card className="p-6 bg-card/60 border-border/50 backdrop-blur-sm">
+          <div className="space-y-3">
+            <h2 className="text-2xl font-semibold text-foreground">Objetivo do simulador</h2>
+            <p className="text-muted-foreground leading-relaxed">
+              Você está no papel de um parceiro do Zé Delivery. Seu objetivo é dominar cada etapa da operação — da abertura da loja à satisfação do cliente — explorando os 15 checkpoints distribuídos pelo mapa. Cada ponto representa uma situação real do dia a dia, acompanhada de um vídeo educativo obrigatório e de uma pergunta aplicada imediatamente após o conteúdo.
+            </p>
+            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
+              <li>
+                Clique em qualquer checkpoint do mapa para abrir o conteúdo educativo correspondente. Você pode se locomover pelo teclado ou navegar diretamente pelos ícones.
+              </li>
+              <li>
+                Assista ao vídeo completo para desbloquear a questão. O sistema acompanha o progresso do vídeo e somente libera a etapa de pergunta quando a reprodução chega ao final.
+              </li>
+              <li>
+                Responda à questão com base no que acabou de aprender. Em caso de erro, um ícone vermelho permanecerá no mapa e você poderá revisar o vídeo e tentar novamente quantas vezes forem necessárias.
+              </li>
+              <li>
+                Acertar concede pontos, melhora seus KPIs e aproxima você do certificado final. Errar reduz uma vida e impacta os indicadores, reforçando a importância de dominar o conteúdo.
+              </li>
+              <li>
+                Complete corretamente os 15 checkpoints para conquistar o certificado oficial do simulador e comprovar sua excelência operacional.
+              </li>
+            </ul>
+            <p className="text-sm text-muted-foreground">
+              Em resumo: percorra os checkpoints, absorva cada lição, responda com precisão e construa resultados consistentes. O aprendizado só é validado quando você demonstra, na prática, o entendimento completo de cada etapa.
+            </p>
+          </div>
+        </Card>
 
         {/* Game Map */}
         <div className="flex justify-center">
