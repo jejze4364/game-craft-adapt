@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface Player {
   id: string;
-  code: string;
+  code: string; // mapeia para players.email
   name?: string;
 }
 
@@ -17,7 +17,7 @@ export interface GameSession {
   accuracy_percentage: number;
   delivery_efficiency: number;
   customer_satisfaction: number;
-  completed_at: string;
+  completed_at: string | null;
   is_completed: boolean;
   players?: {
     email: string;
@@ -25,6 +25,7 @@ export interface GameSession {
   };
 }
 
+// converte o formato do banco para o Player usado no app
 const mapPlayer = (dbPlayer: { id: string; email: string; name?: string } | null): Player | null => {
   if (!dbPlayer) return null;
   return {
@@ -37,22 +38,25 @@ const mapPlayer = (dbPlayer: { id: string; email: string; name?: string } | null
 export const useDatabase = () => {
   const [loading, setLoading] = useState(false);
 
+  // playerCode é o "email sintético" (<id>@local)
   const savePlayer = async (playerCode: string, name?: string): Promise<Player | null> => {
     try {
       setLoading(true);
 
-      // Check if player already exists
+      // Busca jogador existente
       const { data: existingPlayer, error: fetchError } = await supabase
         .from('players')
         .select('*')
         .eq('email', playerCode)
         .maybeSingle();
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
+      // Se vier um erro diferente de "no rows", propaga
+      if (fetchError && (fetchError as any).code !== 'PGRST116') {
         throw fetchError;
       }
 
       if (existingPlayer) {
+        // Atualiza o nome se mudou
         if (name && existingPlayer.name !== name) {
           const { data: updatedPlayer, error: updateError } = await supabase
             .from('players')
@@ -67,7 +71,7 @@ export const useDatabase = () => {
         return mapPlayer(existingPlayer);
       }
 
-      // Create new player
+      // Cria novo jogador
       const { data: newPlayer, error } = await supabase
         .from('players')
         .insert([{ email: playerCode, name }])
@@ -84,6 +88,37 @@ export const useDatabase = () => {
     }
   };
 
+  // Cria sessão vazia no login (para já registrar checkpoints)
+  const createSession = async (playerId: string): Promise<GameSession | null> => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('game_sessions')
+        .insert([{
+          player_id: playerId,
+          score: 0,
+          lives_used: 0,
+          total_time: 0,
+          completed_checkpoints: 0,
+          accuracy_percentage: 0,
+          delivery_efficiency: 0,
+          customer_satisfaction: 0,
+          is_completed: false
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as GameSession;
+    } catch (error) {
+      console.error('Error creating session:', error);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Insert de sessão completa (fallback, se não houve createSession)
   const saveGameSession = async (
     playerId: string,
     gameData: {
@@ -107,7 +142,7 @@ export const useDatabase = () => {
         .single();
 
       if (error) throw error;
-      return session;
+      return session as GameSession;
     } catch (error) {
       console.error('Error saving game session:', error);
       return null;
@@ -116,6 +151,35 @@ export const useDatabase = () => {
     }
   };
 
+  // Atualiza a sessão aberta com KPIs/tempo/score (finalização)
+  const updateGameSession = async (
+    sessionId: string,
+    gameData: Partial<Pick<GameSession,
+      'score' | 'lives_used' | 'total_time' | 'completed_checkpoints' |
+      'accuracy_percentage' | 'delivery_efficiency' | 'customer_satisfaction' |
+      'is_completed'
+    >>
+  ): Promise<GameSession | null> => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('game_sessions')
+        .update(gameData)
+        .eq('id', sessionId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as GameSession;
+    } catch (error) {
+      console.error('Error updating game session:', error);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Grava cada resposta de checkpoint
   const saveCheckpointProgress = async (
     sessionId: string,
     checkpointId: number,
@@ -138,6 +202,7 @@ export const useDatabase = () => {
     }
   };
 
+  // Lista sessões concluídas (para relatórios/leaderboard)
   const getCompletedSessions = async (): Promise<GameSession[]> => {
     try {
       const { data, error } = await supabase
@@ -153,7 +218,7 @@ export const useDatabase = () => {
         .order('completed_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      return (data || []) as GameSession[];
     } catch (error) {
       console.error('Error fetching completed sessions:', error);
       return [];
@@ -163,6 +228,8 @@ export const useDatabase = () => {
   return {
     loading,
     savePlayer,
+    createSession,
+    updateGameSession,
     saveGameSession,
     saveCheckpointProgress,
     getCompletedSessions
