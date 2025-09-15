@@ -20,19 +20,11 @@ export const GameLogin: React.FC<GameLoginProps> = ({
 }) => {
   const [id, setId] = useState("");
   const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!id.trim() || !name.trim()) return;
-
-    if (password !== FIXED_PASSWORD) {
-      const alertEl = document.getElementById("login-alert");
-      if (alertEl) alertEl.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
-
+    // Senha é fixa e o campo está bloqueado; segue direto:
     onLogin({ id: id.trim(), name: name.trim() });
   };
 
@@ -56,15 +48,13 @@ export const GameLogin: React.FC<GameLoginProps> = ({
 
         {/* Login Card */}
         <Card className="p-8 bg-card/80 backdrop-blur-sm border-border/50 shadow-xl animate-slide-in-up">
-          {(error || (password && password !== FIXED_PASSWORD)) && (
+          {error && (
             <Alert
               id="login-alert"
               className="mb-6 border-destructive/50 bg-destructive/10 animate-shake"
             >
               <AlertDescription className="text-destructive-foreground">
-                {password && password !== FIXED_PASSWORD
-                  ? "Senha inválida. Dica: a senha padrão é ze2025."
-                  : error}
+                {error}
               </AlertDescription>
             </Alert>
           )}
@@ -79,7 +69,7 @@ export const GameLogin: React.FC<GameLoginProps> = ({
                 <span className="text-foreground">Nome:</span> escreva exatamente como deseja ver no certificado.
               </li>
               <li>
-                <span className="text-foreground">Senha:</span> digite <strong className="text-foreground">ze2025</strong>, a senha padrão do treinamento.
+                <span className="text-foreground">Senha:</span> a senha padrão <strong className="text-foreground">ze2025</strong> já está preenchida e bloqueada.
               </li>
             </ol>
             <p className="text-xs text-muted-foreground/80">
@@ -130,21 +120,21 @@ export const GameLogin: React.FC<GameLoginProps> = ({
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-semibold">
-                3. Confirme a senha padrão do treinamento
+                3. Senha do treinamento (fixa)
               </Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Digite a senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={FIXED_PASSWORD}
+                readOnly
+                disabled
+                aria-readonly
+                title="Senha fixa do treinamento"
                 className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20 font-mono tracking-wider uppercase"
-                disabled={loading}
-                autoComplete="current-password"
-                required
+                autoComplete="off"
               />
               <p className="text-xs text-muted-foreground">
-                Senha padrão: <span className="font-mono">ze2025</span>
+                Senha padrão: <span className="font-mono">ze2025</span> (campo bloqueado)
               </p>
             </div>
 
@@ -152,7 +142,7 @@ export const GameLogin: React.FC<GameLoginProps> = ({
               <Button
                 type="submit"
                 className="w-full bg-gradient-primary hover:shadow-glow-strong transition-all duration-200 hover:-translate-y-0.5 font-semibold"
-                disabled={loading || !id.trim() || !name.trim() || !password.trim()}
+                disabled={loading || !id.trim() || !name.trim()}
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
@@ -186,7 +176,7 @@ export const GameLogin: React.FC<GameLoginProps> = ({
                 <span className="text-xl">🔒</span>
                 <div>
                   <p className="font-semibold text-foreground">Senha única do treinamento</p>
-                  <p>Digite ze2025 sem espaços extras. É só para confirmar que você está na turma correta.</p>
+                  <p>O campo já vem com <strong>ze2025</strong> e está bloqueado para evitar erros.</p>
                 </div>
               </div>
             </div>
