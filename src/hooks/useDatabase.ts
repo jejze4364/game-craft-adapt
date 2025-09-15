@@ -17,7 +17,7 @@ export interface GameSession {
   accuracy_percentage: number;
   delivery_efficiency: number;
   customer_satisfaction: number;
-  completed_at: string;
+  completed_at: string | null;
   is_completed: boolean;
 }
 
@@ -27,19 +27,18 @@ export const useDatabase = () => {
   const savePlayer = async (email: string, name?: string): Promise<Player | null> => {
     try {
       setLoading(true);
-      
-      // Check if player already exists
-      const { data: existingPlayer } = await supabase
+
+      // Tenta buscar
+      const { data: existingPlayer, error: selErr } = await supabase
         .from('players')
         .select('*')
         .eq('email', email)
-        .single();
+        .maybeSingle();
 
-      if (existingPlayer) {
-        return existingPlayer;
-      }
+      if (selErr) throw selErr;
+      if (existingPlayer) return existingPlayer as Player;
 
-      // Create new player
+      // Cria novo
       const { data: newPlayer, error } = await supabase
         .from('players')
         .insert([{ email, name }])
@@ -47,7 +46,7 @@ export const useDatabase = () => {
         .single();
 
       if (error) throw error;
-      return newPlayer;
+      return newPlayer as Player;
     } catch (error) {
       console.error('Error saving player:', error);
       return null;
@@ -56,6 +55,37 @@ export const useDatabase = () => {
     }
   };
 
+  // NOVO: cria sessão vazia no login (para já registrar checkpoints)
+  const createSession = async (playerId: string): Promise<GameSession | null> => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('game_sessions')
+        .insert([{
+          player_id: playerId,
+          score: 0,
+          lives_used: 0,
+          total_time: 0,
+          completed_checkpoints: 0,
+          accuracy_percentage: 0,
+          delivery_efficiency: 0,
+          customer_satisfaction: 0,
+          is_completed: false
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as GameSession;
+    } catch (error) {
+      console.error('Error creating session:', error);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Mantido: insert de sessão completa (usado como fallback)
   const saveGameSession = async (
     playerId: string,
     gameData: {
@@ -79,9 +109,37 @@ export const useDatabase = () => {
         .single();
 
       if (error) throw error;
-      return session;
+      return session as GameSession;
     } catch (error) {
       console.error('Error saving game session:', error);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // NOVO: atualização da sessão aberta (para finalizar com KPIs/tempo/score)
+  const updateGameSession = async (
+    sessionId: string,
+    gameData: Partial<Pick<GameSession,
+      'score' | 'lives_used' | 'total_time' | 'completed_checkpoints' |
+      'accuracy_percentage' | 'delivery_efficiency' | 'customer_satisfaction' |
+      'is_completed'
+    >>
+  ): Promise<GameSession | null> => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('game_sessions')
+        .update(gameData)
+        .eq('id', sessionId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as GameSession;
+    } catch (error) {
+      console.error('Error updating game session:', error);
       return null;
     } finally {
       setLoading(false);
@@ -125,7 +183,7 @@ export const useDatabase = () => {
         .order('completed_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      return (data || []) as GameSession[];
     } catch (error) {
       console.error('Error fetching completed sessions:', error);
       return [];
@@ -135,6 +193,8 @@ export const useDatabase = () => {
   return {
     loading,
     savePlayer,
+    createSession,          // <- novo
+    updateGameSession,      // <- novo
     saveGameSession,
     saveCheckpointProgress,
     getCompletedSessions
