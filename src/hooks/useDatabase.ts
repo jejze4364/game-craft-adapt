@@ -118,6 +118,42 @@ export const useDatabase = () => {
     }
   };
 
+  // Atualiza uma sessão existente
+  const updateGameSession = async (
+    sessionId: string,
+    gameData: {
+      score: number;
+      lives_used: number;
+      total_time: number;
+      completed_checkpoints: number;
+      accuracy_percentage: number;
+      delivery_efficiency: number;
+      customer_satisfaction: number;
+      is_completed: boolean;
+    }
+  ): Promise<GameSession | null> => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('game_sessions')
+        .update({
+          ...gameData,
+          completed_at: gameData.is_completed ? new Date().toISOString() : null
+        })
+        .eq('id', sessionId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as GameSession;
+    } catch (error) {
+      console.error('Error updating session:', error);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Insert de sessão completa (fallback, se não houve createSession)
   const saveGameSession = async (
     playerId: string,
@@ -126,4 +162,94 @@ export const useDatabase = () => {
       lives_used: number;
       total_time: number;
       completed_checkpoints: number;
-      accuracy
+      accuracy_percentage: number;
+      delivery_efficiency: number;
+      customer_satisfaction: number;
+      is_completed: boolean;
+    }
+  ): Promise<GameSession | null> => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('game_sessions')
+        .insert([{
+          player_id: playerId,
+          ...gameData,
+          completed_at: gameData.is_completed ? new Date().toISOString() : null
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as GameSession;
+    } catch (error) {
+      console.error('Error saving session:', error);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Salva progresso de um checkpoint específico
+  const saveCheckpointProgress = async (
+    sessionId: string,
+    checkpointId: number,
+    answeredCorrectly: boolean,
+    timeTaken: number,
+  ) => {
+    try {
+      const { error } = await supabase
+        .from('checkpoint_progress')
+        .insert([{
+          session_id: sessionId,
+          checkpoint_id: checkpointId,
+          answered_correctly: answeredCorrectly,
+          time_taken: timeTaken
+        }]);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error saving checkpoint progress:', error);
+    }
+  };
+
+  // Busca sessões completas (para relatórios)
+  const getCompletedSessions = async (): Promise<GameSession[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('game_sessions')
+        .select(`
+          *,
+          players (
+            email,
+            name
+          )
+        `)
+        .eq('is_completed', true)
+        .order('completed_at', { ascending: false });
+
+      if (error) throw error;
+      
+      return (data || []).map(session => ({
+        ...session,
+        players: session.players ? {
+          email: session.players.email,
+          name: session.players.name || undefined
+        } : undefined
+      })) as GameSession[];
+    } catch (error) {
+      console.error('Error fetching completed sessions:', error);
+      return [];
+    }
+  };
+
+  return {
+    loading,
+    savePlayer,
+    createSession,
+    updateGameSession,
+    saveGameSession,
+    saveCheckpointProgress,
+    getCompletedSessions,
+  };
+};

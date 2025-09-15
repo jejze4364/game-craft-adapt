@@ -169,6 +169,7 @@ export const ZeDeliverySimulator: React.FC = () => {
         {/* Game HUD */}
         <GameHUD
           userEmail={gameState.currentUser} // aqui estamos mostrando o NOME (startGame(name))
+          playerCode={currentPlayer?.code}
           stats={gameState.stats}
           kpis={gameState.kpis}
           onSettingsClick={() => setShowSettings(true)}
@@ -294,7 +295,7 @@ export const ZeDeliverySimulator: React.FC = () => {
         }}
         playerData={{
           name: currentPlayer?.name || gameState.currentUser || "Jogador",
-          email: currentPlayer?.code || "jogador@local",
+          code: currentPlayer?.code || "jogador@local",
           score: gameState.stats.score,
           totalTime: (() => {
             const parts = gameState.stats.sessionTime.split(":");

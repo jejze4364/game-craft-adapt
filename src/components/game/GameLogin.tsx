@@ -69,10 +69,21 @@ export const GameLogin: React.FC<GameLoginProps> = ({
             </Alert>
           )}
 
-          <div className="mb-6 rounded-lg border border-border/40 bg-bg-tertiary/50 p-3 text-sm text-muted-foreground">
-            <p className="font-semibold text-foreground">Login simples com senha fixa.</p>
-            <p>
-              Informe seu código, nome e a senha padrão para registrar seu resultado corretamente.
+          <div className="mb-6 rounded-lg border border-border/40 bg-bg-tertiary/50 p-3 text-sm text-muted-foreground space-y-2">
+            <p className="font-semibold text-foreground">Como preencher?</p>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>
+                <span className="text-foreground">Código:</span> informe o número de identificação que a liderança lhe passou.
+              </li>
+              <li>
+                <span className="text-foreground">Nome:</span> escreva exatamente como deseja ver no certificado.
+              </li>
+              <li>
+                <span className="text-foreground">Senha:</span> digite <strong className="text-foreground">ze2025</strong>, a senha padrão do treinamento.
+              </li>
+            </ol>
+            <p className="text-xs text-muted-foreground/80">
+              Essas informações garantem que o seu resultado fique registrado corretamente no relatório.
             </p>
           </div>
 
@@ -127,7 +138,7 @@ export const GameLogin: React.FC<GameLoginProps> = ({
                 placeholder="Digite a senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20"
+                className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20 font-mono tracking-wider uppercase"
                 disabled={loading}
                 autoComplete="current-password"
                 required
@@ -169,6 +180,13 @@ export const GameLogin: React.FC<GameLoginProps> = ({
                 <div>
                   <p className="font-semibold text-foreground">Assista até o fim</p>
                   <p>O vídeo precisa terminar para liberar a pergunta.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-bg-tertiary/60 border border-border/40 rounded-lg p-3">
+                <span className="text-xl">🔒</span>
+                <div>
+                  <p className="font-semibold text-foreground">Senha única do treinamento</p>
+                  <p>Digite ze2025 sem espaços extras. É só para confirmar que você está na turma correta.</p>
                 </div>
               </div>
             </div>
