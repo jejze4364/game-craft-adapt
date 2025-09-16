@@ -8,7 +8,7 @@ interface CertificateModalProps {
   onClose: () => void;
   playerData: {
     name: string;
-    email: string;
+    code: string;
     score: number;
     totalTime: number;
     accuracy: number;
@@ -53,7 +53,9 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
 
       // Create download link
       const link = document.createElement('a');
-      link.download = `certificado-ze-delivery-${playerData.name.replace(/\s+/g, '-').toLowerCase()}.png`;
+      const normalizedName = playerData.name.replace(/\s+/g, '-').toLowerCase();
+      const normalizedCode = playerData.code.replace(/[^a-zA-Z0-9-_]/g, '').toLowerCase() || 'codigo';
+      link.download = `certificado-ze-delivery-${normalizedCode}-${normalizedName}.png`;
       link.href = canvas.toDataURL();
       link.click();
     } catch (error) {
@@ -108,6 +110,9 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
           <div className="text-center mb-8">
             <div className="text-4xl font-bold text-ze-blue border-b-2 border-ze-yellow pb-2 inline-block px-8">
               {playerData.name}
+            </div>
+            <div className="text-sm text-gray-600 mt-3">
+              Código do participante: <strong>{playerData.code}</strong>
             </div>
           </div>
 

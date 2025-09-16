@@ -6,15 +6,20 @@ interface Position {
   y: number;
 }
 
+type CheckpointStatus = "locked" | "current" | "completed" | "failed";
+
+interface GameMapCheckpoint {
+  id: number;
+  x: number;
+  y: number;
+  completed: boolean;
+  status: CheckpointStatus;
+}
+
 interface GameMapProps {
   playerPosition: Position;
   onPositionChange: (position: Position) => void;
-  checkpoints: Array<{
-    id: number;
-    x: number;
-    y: number;
-    completed: boolean;
-  }>;
+  checkpoints: GameMapCheckpoint[];
   onCheckpointReach: (checkpointId: number) => void;
 }
 
@@ -73,7 +78,10 @@ export const GameMap: React.FC<GameMapProps> = ({
 
       // Check for checkpoint collision
       const checkpoint = checkpoints.find(
-        (cp) => cp.x === newX && cp.y === newY && !cp.completed
+        (cp) =>
+          cp.x === newX &&
+          cp.y === newY &&
+          (cp.status === "current" || cp.status === "failed")
       );
       if (checkpoint) {
         onCheckpointReach(checkpoint.id);
@@ -92,23 +100,42 @@ export const GameMap: React.FC<GameMapProps> = ({
     const isRoad = MAP_LAYOUT[y][x] === TILE_TYPES.ROAD;
     const isPlayer = playerPosition.x === x && playerPosition.y === y;
     const checkpoint = checkpoints.find(cp => cp.x === x && cp.y === y);
-    
+
     let tileContent = null;
     let tileClasses = "w-[var(--tile-size)] h-[var(--tile-size)] border border-border/20 transition-all duration-200 flex items-center justify-center text-lg font-bold";
-    
+
     if (isRoad) {
       tileClasses += " bg-game-road";
-      
+
       if (isPlayer) {
         tileContent = "🏍️";
         tileClasses += " animate-pulse-glow";
       } else if (checkpoint) {
-        if (checkpoint.completed) {
+        if (checkpoint.status === "completed") {
           tileContent = "✅";
           tileClasses += " bg-ze-green text-primary-foreground";
+        } else if (checkpoint.status === "failed") {
+          tileContent = "❌";
+          tileClasses += " bg-ze-red text-primary-foreground";
+        } else if (checkpoint.status === "current") {
+          tileContent = (
+            <span className="text-base sm:text-lg font-extrabold text-primary-foreground">
+              {checkpoint.id + 1}
+            </span>
+          );
+          tileClasses += " bg-ze-yellow text-primary-foreground shadow-glow";
         } else {
-          tileContent = "📦";
-          tileClasses += " bg-game-checkpoint text-primary-foreground animate-float";
+          tileContent = (
+            <span className="flex flex-col items-center gap-0 text-[10px] sm:text-xs text-muted-foreground">
+              <span>🔒</span>
+              <span className="font-semibold">{checkpoint.id + 1}</span>
+            </span>
+          );
+          tileClasses += " bg-muted/50 text-muted-foreground cursor-not-allowed";
+        }
+
+        if (checkpoint.status === "current" || checkpoint.status === "failed") {
+          tileClasses += " cursor-pointer";
         }
       } else if (x === 2 && y === 6) {
         // Store position
@@ -124,6 +151,13 @@ export const GameMap: React.FC<GameMapProps> = ({
         key={`${y}-${x}`}
         className={tileClasses}
         onClick={() => {
+          if (checkpoint) {
+            onCheckpointReach(checkpoint.id);
+            if (checkpoint.status === "locked") {
+              return;
+            }
+          }
+
           if (isRoad) {
             onPositionChange({ x, y });
           }
@@ -172,10 +206,17 @@ export const GameMap: React.FC<GameMapProps> = ({
             <span>🏪</span> Sua Loja
           </span>
           <span className="flex items-center gap-1">
-            <span>📦</span> Checkpoint
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-ze-yellow text-[10px] font-bold text-primary-foreground">1</span>
+            Checkpoint atual
+          </span>
+          <span className="flex items-center gap-1">
+            <span>❌</span> Revisar conteúdo
           </span>
           <span className="flex items-center gap-1">
             <span>✅</span> Concluído
+          </span>
+          <span className="flex items-center gap-1">
+            <span>🔒</span> Bloqueado
           </span>
         </div>
       </div>

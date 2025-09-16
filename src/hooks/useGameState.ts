@@ -26,6 +26,8 @@ interface GameSettings {
   speed: number;
 }
 
+type CheckpointStatus = "locked" | "current" | "completed" | "failed";
+
 interface CheckpointData {
   id: number;
   x: number;
@@ -38,6 +40,7 @@ interface CheckpointData {
   hint: string;
   type?: "text" | "multiple";
   completed: boolean;
+  status: CheckpointStatus;
 }
 
 interface GameState {
@@ -59,7 +62,7 @@ interface GameState {
   totalQuestions: number;
 }
 
-const INITIAL_CHECKPOINTS: Omit<CheckpointData, 'completed'>[] = [
+const INITIAL_CHECKPOINTS: Omit<CheckpointData, "completed" | "status">[] = [
   // Checkpoint 1: Gestão de Tempo e Disponibilidade
   { 
     id: 0, x: 3, y: 2, 
@@ -254,17 +257,21 @@ export const useGameState = () => {
       sessionTime: "00:00"
     },
     kpis: {
-      disponibilidade: 70,
-      aceitacao: 70,
-      tempoEntrega: 70,
-      avaliacao: 70
+      disponibilidade: 0,
+      aceitacao: 0,
+      tempoEntrega: 0,
+      avaliacao: 0
     },
     settings: {
       sound: true,
       animations: true,
       speed: 1
     },
-    checkpoints: INITIAL_CHECKPOINTS.map(cp => ({ ...cp, completed: false })),
+    checkpoints: INITIAL_CHECKPOINTS.map((cp, index) => ({
+      ...cp,
+      completed: false,
+      status: index === 0 ? "current" : "locked",
+    })),
     correctAnswers: 0,
     totalQuestions: 0
   });
@@ -305,10 +312,10 @@ export const useGameState = () => {
     }));
   }, [gameState.correctAnswers, gameState.totalQuestions]);
 
-  const startGame = useCallback((userEmail: string) => {
+  const startGame = useCallback((playerName: string) => {
     setGameState(prev => ({
       ...prev,
-      currentUser: userEmail,
+      currentUser: playerName,
       sessionStartTime: Date.now(),
     }));
   }, []);
@@ -322,14 +329,50 @@ export const useGameState = () => {
 
   const answerCheckpoint = useCallback((checkpointId: number, isCorrect: boolean) => {
     setGameState(prev => {
-      const newCheckpoints = prev.checkpoints.map(cp =>
-        cp.id === checkpointId ? { ...cp, completed: true } : cp
-      );
+      const checkpointIndex = prev.checkpoints.findIndex(cp => cp.id === checkpointId);
+      if (checkpointIndex === -1) {
+        return prev;
+      }
+
+      const newCheckpoints = prev.checkpoints.map(cp => {
+        if (cp.id !== checkpointId) {
+          return cp;
+        }
+
+        if (isCorrect) {
+          return {
+            ...cp,
+            completed: true,
+            status: "completed",
+          };
+        }
+
+        return {
+          ...cp,
+          completed: false,
+          status: "failed",
+        };
+      });
+
+      if (isCorrect) {
+        const nextIndex = checkpointIndex + 1;
+        if (nextIndex < newCheckpoints.length) {
+          const nextCheckpoint = newCheckpoints[nextIndex];
+          if (nextCheckpoint.status === "locked") {
+            newCheckpoints[nextIndex] = {
+              ...nextCheckpoint,
+              status: "current",
+            };
+          }
+        }
+      }
+
+      const completedCount = newCheckpoints.filter(cp => cp.status === "completed").length;
 
       const newStats = {
         ...prev.stats,
-        completedTasks: newCheckpoints.filter(cp => cp.completed).length,
-        score: prev.stats.score + (isCorrect ? 100 : 0),
+        completedTasks: completedCount,
+        score: isCorrect ? prev.stats.score + 100 : prev.stats.score,
         lives: isCorrect ? prev.stats.lives : Math.max(0, prev.stats.lives - 1)
       };
 
@@ -372,12 +415,16 @@ export const useGameState = () => {
         sessionTime: "00:00"
       },
       kpis: {
-        disponibilidade: 70,
-        aceitacao: 70,
-        tempoEntrega: 70,
-        avaliacao: 70
+        disponibilidade: 0,
+        aceitacao: 0,
+        tempoEntrega: 0,
+        avaliacao: 0
       },
-      checkpoints: INITIAL_CHECKPOINTS.map(cp => ({ ...cp, completed: false })),
+      checkpoints: INITIAL_CHECKPOINTS.map((cp, index) => ({
+        ...cp,
+        completed: false,
+        status: index === 0 ? "current" : "locked",
+      })),
       correctAnswers: 0,
       totalQuestions: 0,
       sessionStartTime: Date.now()
