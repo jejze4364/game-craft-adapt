@@ -192,51 +192,64 @@ export const ZeDeliverySimulator: React.FC = () => {
           onSettingsClick={() => setShowSettings(true)}
         />
 
+        {/* =========================================== */}
+        {/*  NOVO LAYOUT: passo a passo à ESQUERDA      */}
+        {/*  e demais conteúdos (objetivo + infos) à    */
+        {/*  DIREITA, com responsividade.               */
+        {/* =========================================== */}
         <Card className="p-6 bg-card/60 border-border/50 backdrop-blur-sm">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-semibold text-foreground">Objetivo do simulador</h2>
-              <p className="text-muted-foreground leading-relaxed">
-                Aqui você pratica, passo a passo, o atendimento ideal do parceiro Zé Delivery. Em cada ponto do mapa, basta seguir os três passos abaixo.
-              </p>
-            </div>
+          <div className="grid gap-6 md:grid-cols-5">
+            {/* Coluna esquerda: lista vertical do passo a passo */}
+            <aside className="md:col-span-2 space-y-3">
+              <h3 className="text-xl font-semibold text-foreground">Passo a passo</h3>
 
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
-                <span className="text-2xl" role="img" aria-label="Abrir aula">📍</span>
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">1. Abra a aula</p>
-                  <p className="text-sm text-muted-foreground">Clique ou toque na bebida do mapa para assistir ao conteúdo daquele tema.</p>
+              <ol className="space-y-3">
+                <li className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
+                  <span className="text-2xl" role="img" aria-label="Abrir aula">📍</span>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">1. Abra a aula</p>
+                    <p className="text-sm text-muted-foreground">Clique/Toque na bebida do mapa para assistir ao conteúdo daquele tema.</p>
+                  </div>
+                </li>
+
+                <li className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
+                  <span className="text-2xl" role="img" aria-label="Assistir video">▶️</span>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">2. Veja o vídeo até o final</p>
+                    <p className="text-sm text-muted-foreground">O botão da pergunta aparece sozinho quando a barra de progresso chega ao fim.</p>
+                  </div>
+                </li>
+
+                <li className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
+                  <span className="text-2xl" role="img" aria-label="Responder pergunta">✅</span>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">3. Responda com calma</p>
+                    <p className="text-sm text-muted-foreground">Use o que acabou de aprender. Se errar, o ponto fica vermelho e você pode tentar de novo.</p>
+                  </div>
+                </li>
+              </ol>
+            </aside>
+
+            {/* Coluna direita: objetivo + infos */}
+            <section className="md:col-span-3 space-y-4">
+              <div className="space-y-2">
+                <h2 className="text-2xl font-semibold text-foreground">Objetivo do simulador</h2>
+                <p className="text-muted-foreground leading-relaxed">
+                  Aqui você pratica, passo a passo, o atendimento ideal do parceiro Zé Delivery. Em cada ponto do mapa, siga os três passos ao lado.
+                </p>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="p-3 rounded-lg bg-bg-tertiary/60 border border-border/30 text-sm text-muted-foreground">
+                  <p className="font-semibold text-foreground mb-1">Resultados em tempo real</p>
+                  <p>Os cartões acima mostram suas vidas, pontos e indicadores. Cada acerto melhora sua pontuação; cada erro gasta uma vida.</p>
+                </div>
+                <div className="p-3 rounded-lg bg-bg-tertiary/60 border border-border/30 text-sm text-muted-foreground">
+                  <p className="font-semibold text-foreground mb-1">Certificado ao final</p>
+                  <p>Complete todos os 15 checkpoints verdes para receber o certificado com seu nome.</p>
                 </div>
               </div>
-
-              <div className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
-                <span className="text-2xl" role="img" aria-label="Assistir video">▶️</span>
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">2. Veja o vídeo até o final</p>
-                  <p className="text-sm text-muted-foreground">O botão da pergunta aparece sozinho quando a barra de progresso chega ao fim.</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
-                <span className="text-2xl" role="img" aria-label="Responder pergunta">✅</span>
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">3. Responda com calma</p>
-                  <p className="text-sm text-muted-foreground">Use o que acabou de aprender. Se errar, o ponto fica vermelho e você pode tentar de novo.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="p-3 rounded-lg bg-bg-tertiary/60 border border-border/30 text-sm text-muted-foreground">
-                <p className="font-semibold text-foreground mb-1">Resultados em tempo real</p>
-                <p>Os cartões acima mostram suas vidas, pontos e indicadores. Cada acerto melhora sua pontuação; cada erro gasta uma vida.</p>
-              </div>
-              <div className="p-3 rounded-lg bg-bg-tertiary/60 border border-border/30 text-sm text-muted-foreground">
-                <p className="font-semibold text-foreground mb-1">Certificado ao final</p>
-                <p>Complete todos os 15 checkpoints verdes para receber o certificado com seu nome.</p>
-              </div>
-            </div>
+            </section>
           </div>
         </Card>
 
