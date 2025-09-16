@@ -35,7 +35,7 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
   isOpen,
   onClose,
   checkpoint,
-  onAnswer
+  onAnswer,
 }) => {
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
   const [textAnswer, setTextAnswer] = useState("");
@@ -50,19 +50,23 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
 
   const isTextType = checkpoint.type === "text";
   const currentAnswer = isTextType ? textAnswer : selectedAnswer;
+
+  // Liberação da pergunta depende do vídeo completo (estilo "codex")
   const questionUnlocked = videoCompleted;
 
   const handleSubmit = () => {
-    if (!showQuestion) {
-      return;
-    }
+    // Segurança dupla: só envia se a pergunta estiver visível (estilo "main")
+    // E se a liberação pelo vídeo estiver concluída (estilo "codex")
+    if (!showQuestion || !questionUnlocked) return;
 
     let correct = false;
 
     if (isTextType) {
       correct = textAnswer.toLowerCase().trim() === String(checkpoint.correct).toLowerCase();
     } else {
-      correct = parseInt(selectedAnswer) === checkpoint.correct;
+      // checkpoint.correct pode ser number | string; garantir comparação numérica segura
+      const correctIndex = typeof checkpoint.correct === "number" ? checkpoint.correct : parseInt(String(checkpoint.correct), 10);
+      correct = parseInt(selectedAnswer, 10) === correctIndex;
     }
 
     setIsCorrect(correct);
@@ -85,7 +89,7 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
     setShowHint(false);
     setVideoCompleted(false);
     setVideoProgress(0);
-    setShowQuestion(false);
+    setShowQuestion(false); // garantir reset visual completo
     onClose();
   };
 
@@ -95,7 +99,7 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
     setShowHint(false);
     setSelectedAnswer("");
     setTextAnswer("");
-    setShowQuestion(false);
+    setShowQuestion(false); // recomeçar o fluxo de pergunta
   };
 
   const handleVideoTimeUpdate = (event: React.SyntheticEvent<HTMLVideoElement, Event>) => {
@@ -122,7 +126,7 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Video Section */}
+          {/* Seção do Vídeo */}
           <Card className="p-4 bg-bg-secondary/50 border-border/50">
             <div className="space-y-3">
               <div className="aspect-video bg-bg-tertiary rounded-lg overflow-hidden">
@@ -133,7 +137,12 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
                   onTimeUpdate={handleVideoTimeUpdate}
                   onEnded={handleVideoEnded}
                 >
-                  <source src={`/videos/${String(checkpoint.id + 1).padStart(2, '0')}-${checkpoint.video.toLowerCase().replace(/\s+/g, '-')}.mp4`} type="video/mp4" />
+                  <source
+                    src={`/videos/${String(checkpoint.id + 1).padStart(2, "0")}-${checkpoint.video
+                      .toLowerCase()
+                      .replace(/\s+/g, "-")}.mp4`}
+                    type="video/mp4"
+                  />
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center text-muted-foreground">
                       <div className="text-4xl mb-2">🎥</div>
@@ -152,7 +161,7 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
                 <Progress value={videoProgress} className="h-2" />
                 {!videoCompleted && (
                   <p className="text-[11px] text-muted-foreground/80">
-                    Assista ao vídeo até o fim para liberar o botão "Responder Pergunta".
+                    Assista ao vídeo até o fim para liberar o botão "Responder Pergunta" e as alternativas.
                   </p>
                 )}
                 {videoCompleted && !showQuestion && (
@@ -169,7 +178,7 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
             </div>
           </Card>
 
-          {/* Context and Question - Only show after "Responder Pergunta" */}
+          {/* Contexto e Pergunta – somente após clicar em "Responder Pergunta" */}
           {showQuestion && (
             <>
               <Card className="p-4 bg-ze-yellow/10 border-ze-yellow/30">
@@ -177,15 +186,18 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
                 <p className="text-foreground">{checkpoint.context}</p>
               </Card>
 
+              {/* Pergunta */}
               <Card className="p-4">
                 <h3 className="font-semibold text-foreground mb-3">{checkpoint.situation}</h3>
-                
+
                 {showResult ? (
-                  <div className={`p-4 rounded-lg border-2 ${
-                    isCorrect
-                      ? "bg-ze-green/10 border-ze-green text-ze-green"
-                      : "bg-ze-red/10 border-ze-red text-ze-red"
-                  }`}>
+                  <div
+                    className={`p-4 rounded-lg border-2 ${
+                      isCorrect
+                        ? "bg-ze-green/10 border-ze-green text-ze-green"
+                        : "bg-ze-red/10 border-ze-red text-ze-red"
+                    }`}
+                  >
                     <div className="flex items-center gap-2 mb-2">
                       {isCorrect ? (
                         <CheckCircle className="h-5 w-5" />
@@ -204,6 +216,12 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    {!questionUnlocked && (
+                      <div className="p-4 rounded-lg border border-dashed border-ze-yellow/60 bg-ze-yellow/10 text-sm text-ze-yellow">
+                        Conclua o vídeo para liberar as alternativas desta pergunta. Isso garante que você absorveu todo o conteúdo antes de responder.
+                      </div>
+                    )}
+
                     {isTextType ? (
                       <div>
                         <Label htmlFor="textAnswer" className="text-sm font-medium">
@@ -215,22 +233,27 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
                           onChange={(e) => setTextAnswer(e.target.value)}
                           placeholder="Digite aqui..."
                           className="mt-1"
+                          disabled={!questionUnlocked}
                         />
                       </div>
                     ) : (
                       <RadioGroup
                         value={selectedAnswer}
-                        onValueChange={setSelectedAnswer}
+                        onValueChange={(value) => {
+                          if (!questionUnlocked) return;
+                          setSelectedAnswer(value);
+                        }}
                       >
                         {checkpoint.options.map((option, index) => (
                           <div key={index} className="flex items-center space-x-2">
                             <RadioGroupItem
                               value={index.toString()}
                               id={`option-${index}`}
+                              disabled={!questionUnlocked}
                             />
                             <Label
                               htmlFor={`option-${index}`}
-                              className="flex-1 cursor-pointer"
+                              className={`flex-1 ${questionUnlocked ? "cursor-pointer" : "opacity-50 cursor-not-allowed"}`}
                             >
                               {option}
                             </Label>
@@ -256,13 +279,14 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
             </>
           )}
 
-          {/* Actions */}
+          {/* Ações */}
           {showQuestion && !showResult ? (
             <div className="flex gap-3">
               <Button
                 variant="game-secondary"
                 onClick={() => setShowHint(!showHint)}
                 className="flex-1"
+                disabled={!questionUnlocked}
               >
                 <Lightbulb className="h-4 w-4" />
                 {showHint ? "Ocultar Dica" : "Mostrar Dica"}
@@ -271,7 +295,7 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
               <Button
                 variant="game"
                 onClick={handleSubmit}
-                disabled={!currentAnswer.trim()}
+                disabled={!questionUnlocked || !currentAnswer.trim()}
                 className="flex-1"
               >
                 <CheckCircle className="h-4 w-4" />
@@ -288,11 +312,7 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
                 <Lightbulb className="h-4 w-4" />
                 Revisar dica
               </Button>
-              <Button
-                variant="game"
-                onClick={handleRetry}
-                className="flex-1"
-              >
+              <Button variant="game" onClick={handleRetry} className="flex-1">
                 <XCircle className="h-4 w-4" />
                 Tentar novamente
               </Button>

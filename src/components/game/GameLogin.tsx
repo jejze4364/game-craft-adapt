@@ -5,27 +5,65 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+// --- Tipagem: aceitar ambos formatos de callback ---
+// 1) onLogin(playerCode: string, playerName: string)
+// 2) onLogin({ id: string, name: string })
+
+type OnLoginFn =
+  | ((playerCode: string, playerName: string) => void)
+  | ((args: { id: string; name: string }) => void);
+
 interface GameLoginProps {
-  onLogin: (args: { id: string; name: string }) => void;
+  onLogin: OnLoginFn;
   error?: string;
   loading?: boolean;
 }
 
-const FIXED_PASSWORD = "ze2025";
+// Senha canônica (case-insensitive). Exibe sugestão "Ze2025" mas valida sem diferenciar maiúsc./minúsc.
+const CANONICAL_PASSWORD = "ze2025";
 
 export const GameLogin: React.FC<GameLoginProps> = ({
   onLogin,
   error,
-  loading = false
+  loading = false,
 }) => {
   const [id, setId] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [localError, setLocalError] = useState("");
+
+  const isPasswordValid = password.trim().toLowerCase() === CANONICAL_PASSWORD;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id.trim() || !name.trim() || password !== FIXED_PASSWORD) return;
-    onLogin({ id: id.trim(), name: name.trim() });
+    setLocalError("");
+
+    if (!id.trim() || !name.trim()) {
+      setLocalError("Informe seu código e seu nome completo.");
+      return;
+    }
+
+    if (!isPasswordValid) {
+      setLocalError(
+        "A senha padrão é Ze2025. Verifique se digitou corretamente e tente novamente."
+      );
+      return;
+    }
+
+    const trimmedId = id.trim();
+    const trimmedName = name.trim();
+
+    // Chamada compatível com ambas assinaturas
+    const fn = onLogin as any;
+    if (typeof fn === "function") {
+      if (typeof fn.length === "number" && fn.length >= 2) {
+        // Versão (code, name)
+        fn(trimmedId, trimmedName);
+      } else {
+        // Versão ({ id, name })
+        fn({ id: trimmedId, name: trimmedName });
+      }
+    }
   };
 
   return (
@@ -48,13 +86,10 @@ export const GameLogin: React.FC<GameLoginProps> = ({
 
         {/* Login Card */}
         <Card className="p-8 bg-card/80 backdrop-blur-sm border-border/50 shadow-xl animate-slide-in-up">
-          {error && (
-            <Alert
-              id="login-alert"
-              className="mb-6 border-destructive/50 bg-destructive/10 animate-shake"
-            >
+          {(error || localError) && (
+            <Alert id="login-alert" className="mb-6 border-destructive/50 bg-destructive/10 animate-shake">
               <AlertDescription className="text-destructive-foreground">
-                {error}
+                {localError || error}
               </AlertDescription>
             </Alert>
           )}
@@ -69,7 +104,7 @@ export const GameLogin: React.FC<GameLoginProps> = ({
                 <span className="text-foreground">Nome:</span> escreva exatamente como deseja ver no certificado.
               </li>
               <li>
-                <span className="text-foreground">Senha:</span> insira a senha padrão do treinamento fornecida pela liderança.
+                <span className="text-foreground">Senha:</span> digite <strong className="text-foreground">Ze2025</strong>, a senha padrão do treinamento.
               </li>
             </ol>
             <p className="text-xs text-muted-foreground/80">
@@ -125,21 +160,19 @@ export const GameLogin: React.FC<GameLoginProps> = ({
               <Input
                 id="password"
                 type="password"
-                placeholder="Insira a senha padrão"
+                placeholder="Ze2025"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20"
+                className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20 font-mono tracking-wider"
                 disabled={loading}
                 autoComplete="off"
                 required
               />
               <p className="text-xs text-muted-foreground">
-                Use a senha padrão fornecida pela liderança para este treinamento.
+                A senha é sempre Ze2025 (não diferencia maiúsculas e minúsculas).
               </p>
-              {password && password !== FIXED_PASSWORD && (
-                <p className="text-xs text-destructive">
-                  Senha incorreta. Verifique com a liderança.
-                </p>
+              {password && !isPasswordValid && (
+                <p className="text-xs text-destructive">Senha incorreta. Verifique com a liderança.</p>
               )}
             </div>
 
@@ -147,7 +180,7 @@ export const GameLogin: React.FC<GameLoginProps> = ({
               <Button
                 type="submit"
                 className="w-full bg-gradient-primary hover:shadow-glow-strong transition-all duration-200 hover:-translate-y-0.5 font-semibold"
-                disabled={loading || !id.trim() || !name.trim() || password !== FIXED_PASSWORD}
+                disabled={loading || !id.trim() || !name.trim() || !isPasswordValid}
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
@@ -180,8 +213,8 @@ export const GameLogin: React.FC<GameLoginProps> = ({
               <div className="flex items-center gap-3 bg-bg-tertiary/60 border border-border/40 rounded-lg p-3">
                 <span className="text-xl">🔒</span>
                 <div>
-                  <p className="font-semibold text-foreground">Senha padrão do treinamento</p>
-                  <p>Use a senha fornecida pela liderança para acessar o conteúdo.</p>
+                  <p className="font-semibold text-foreground">Senha única do treinamento</p>
+                  <p>Digite Ze2025 sem espaços extras. É só para confirmar que você está na turma correta.</p>
                 </div>
               </div>
             </div>
