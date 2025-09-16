@@ -168,7 +168,7 @@ export const ZeDeliverySimulator: React.FC = () => {
       <div className="container mx-auto p-4 max-w-7xl space-y-6">
         {/* Game HUD */}
         <GameHUD
-          userEmail={gameState.currentUser} // aqui estamos mostrando o NOME (startGame(name))
+          playerName={gameState.currentUser || "Jogador"} // aqui estamos mostrando o NOME (startGame(name))
           playerCode={currentPlayer?.code}
           stats={gameState.stats}
           kpis={gameState.kpis}
