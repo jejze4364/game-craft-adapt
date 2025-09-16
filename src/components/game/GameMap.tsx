@@ -115,7 +115,7 @@ export const GameMap: React.FC<GameMapProps> = ({
           tileContent = "❌";
           tileClasses += " bg-ze-red text-primary-foreground";
         } else {
-          tileContent = "📦";
+          tileContent = "🍺";
           tileClasses += " bg-game-checkpoint text-primary-foreground";
         }
       } else if (x === 2 && y === 6) {
@@ -185,7 +185,7 @@ export const GameMap: React.FC<GameMapProps> = ({
             <span>🏪</span> Sua Loja
           </span>
           <span className="flex items-center gap-1">
-            <span>📦</span> Checkpoint
+            <span>🍺</span> Checkpoint
           </span>
           <span className="flex items-center gap-1">
             <span>❌</span> Revisar conteúdo

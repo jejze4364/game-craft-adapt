@@ -20,11 +20,11 @@ export const GameLogin: React.FC<GameLoginProps> = ({
 }) => {
   const [id, setId] = useState("");
   const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id.trim() || !name.trim()) return;
-    // Senha é fixa e o campo está bloqueado; segue direto:
+    if (!id.trim() || !name.trim() || password !== FIXED_PASSWORD) return;
     onLogin({ id: id.trim(), name: name.trim() });
   };
 
@@ -69,7 +69,7 @@ export const GameLogin: React.FC<GameLoginProps> = ({
                 <span className="text-foreground">Nome:</span> escreva exatamente como deseja ver no certificado.
               </li>
               <li>
-                <span className="text-foreground">Senha:</span> a senha padrão <strong className="text-foreground">ze2025</strong> já está preenchida e bloqueada.
+                <span className="text-foreground">Senha:</span> insira a senha padrão do treinamento fornecida pela liderança.
               </li>
             </ol>
             <p className="text-xs text-muted-foreground/80">
@@ -120,29 +120,34 @@ export const GameLogin: React.FC<GameLoginProps> = ({
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-semibold">
-                3. Senha do treinamento (fixa)
+                3. Senha do treinamento
               </Label>
               <Input
                 id="password"
                 type="password"
-                value={FIXED_PASSWORD}
-                readOnly
-                disabled
-                aria-readonly
-                title="Senha fixa do treinamento"
-                className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20 font-mono tracking-wider uppercase"
+                placeholder="Insira a senha padrão"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20"
+                disabled={loading}
                 autoComplete="off"
+                required
               />
               <p className="text-xs text-muted-foreground">
-                Senha padrão: <span className="font-mono">ze2025</span> (campo bloqueado)
+                Use a senha padrão fornecida pela liderança para este treinamento.
               </p>
+              {password && password !== FIXED_PASSWORD && (
+                <p className="text-xs text-destructive">
+                  Senha incorreta. Verifique com a liderança.
+                </p>
+              )}
             </div>
 
             <div className="pt-2">
               <Button
                 type="submit"
                 className="w-full bg-gradient-primary hover:shadow-glow-strong transition-all duration-200 hover:-translate-y-0.5 font-semibold"
-                disabled={loading || !id.trim() || !name.trim()}
+                disabled={loading || !id.trim() || !name.trim() || password !== FIXED_PASSWORD}
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
@@ -162,7 +167,7 @@ export const GameLogin: React.FC<GameLoginProps> = ({
                 <span className="text-xl">🖱️</span>
                 <div>
                   <p className="font-semibold text-foreground">Use o mouse ou o dedo</p>
-                  <p>Depois do login, clique nos pontos do mapa para abrir as aulas.</p>
+                  <p>Depois do login, clique nas bebidas do mapa para abrir as aulas.</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-bg-tertiary/60 border border-border/40 rounded-lg p-3">
@@ -175,8 +180,8 @@ export const GameLogin: React.FC<GameLoginProps> = ({
               <div className="flex items-center gap-3 bg-bg-tertiary/60 border border-border/40 rounded-lg p-3">
                 <span className="text-xl">🔒</span>
                 <div>
-                  <p className="font-semibold text-foreground">Senha única do treinamento</p>
-                  <p>O campo já vem com <strong>ze2025</strong> e está bloqueado para evitar erros.</p>
+                  <p className="font-semibold text-foreground">Senha padrão do treinamento</p>
+                  <p>Use a senha fornecida pela liderança para acessar o conteúdo.</p>
                 </div>
               </div>
             </div>
@@ -187,7 +192,7 @@ export const GameLogin: React.FC<GameLoginProps> = ({
         <div className="grid grid-cols-3 gap-4 text-center">
           <div className="space-y-1">
             <div className="text-2xl">1️⃣</div>
-            <div className="text-xs text-muted-foreground">Clique em um ponto</div>
+            <div className="text-xs text-muted-foreground">Clique nas bebidas</div>
           </div>
           <div className="space-y-1">
             <div className="text-2xl">2️⃣</div>

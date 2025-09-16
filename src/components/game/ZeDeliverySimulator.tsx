@@ -193,7 +193,7 @@ export const ZeDeliverySimulator: React.FC = () => {
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-foreground">1. Abra a aula</p>
                   <p className="text-sm text-muted-foreground">
-                    Clique ou toque no ponto do mapa para assistir ao conteúdo daquele tema.
+                    Clique ou toque na bebida do mapa para assistir ao conteúdo daquele tema.
                   </p>
                 </div>
               </div>

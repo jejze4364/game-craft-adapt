@@ -44,6 +44,7 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
   const [showHint, setShowHint] = useState(false);
   const [videoCompleted, setVideoCompleted] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
+  const [showQuestion, setShowQuestion] = useState(false);
 
   if (!checkpoint) return null;
 
@@ -52,7 +53,7 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
   const questionUnlocked = videoCompleted;
 
   const handleSubmit = () => {
-    if (!questionUnlocked) {
+    if (!showQuestion) {
       return;
     }
 
@@ -84,6 +85,7 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
     setShowHint(false);
     setVideoCompleted(false);
     setVideoProgress(0);
+    setShowQuestion(false);
     onClose();
   };
 
@@ -93,6 +95,7 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
     setShowHint(false);
     setSelectedAnswer("");
     setTextAnswer("");
+    setShowQuestion(false);
   };
 
   const handleVideoTimeUpdate = (event: React.SyntheticEvent<HTMLVideoElement, Event>) => {
@@ -113,7 +116,7 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card/95 backdrop-blur-sm border-border/50">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <span className="text-2xl">📦</span>
+            <span className="text-2xl">🍺</span>
             Checkpoint #{checkpoint.id + 1}
           </DialogTitle>
         </DialogHeader>
@@ -149,116 +152,117 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
                 <Progress value={videoProgress} className="h-2" />
                 {!videoCompleted && (
                   <p className="text-[11px] text-muted-foreground/80">
-                    Assista ao vídeo até o fim para liberar a pergunta deste checkpoint. Você pode pausar e retomar quando precisar.
+                    Assista ao vídeo até o fim para liberar o botão "Responder Pergunta".
                   </p>
+                )}
+                {videoCompleted && !showQuestion && (
+                  <div className="pt-2">
+                    <Button
+                      onClick={() => setShowQuestion(true)}
+                      className="w-full bg-gradient-primary hover:shadow-glow-strong transition-all duration-200"
+                    >
+                      Responder Pergunta
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
           </Card>
 
-          {/* Context */}
-          <Card className="p-4 bg-ze-yellow/10 border-ze-yellow/30">
-            <h3 className="font-semibold text-ze-yellow mb-2">Contexto</h3>
-            <p className="text-foreground">{checkpoint.context}</p>
-          </Card>
+          {/* Context and Question - Only show after "Responder Pergunta" */}
+          {showQuestion && (
+            <>
+              <Card className="p-4 bg-ze-yellow/10 border-ze-yellow/30">
+                <h3 className="font-semibold text-ze-yellow mb-2">Contexto</h3>
+                <p className="text-foreground">{checkpoint.context}</p>
+              </Card>
 
-          {/* Question */}
-          <Card className="p-4">
-            <h3 className="font-semibold text-foreground mb-3">{checkpoint.situation}</h3>
-            
-            {showResult ? (
-              <div className={`p-4 rounded-lg border-2 ${
-                isCorrect
-                  ? "bg-ze-green/10 border-ze-green text-ze-green"
-                  : "bg-ze-red/10 border-ze-red text-ze-red"
-              }`}>
-                <div className="flex items-center gap-2 mb-2">
-                  {isCorrect ? (
-                    <CheckCircle className="h-5 w-5" />
-                  ) : (
-                    <XCircle className="h-5 w-5" />
-                  )}
-                  <span className="font-semibold">
-                    {isCorrect ? "Correto!" : "Incorreto!"}
-                  </span>
-                </div>
-                <p className="text-sm opacity-90">
-                  {isCorrect
-                    ? "Parabéns! Você domina essa prática do Zé Delivery."
-                    : "Reveja os pontos principais do vídeo, ajuste sua estratégia e tente novamente."}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {!questionUnlocked && (
-                  <div className="p-4 rounded-lg border border-dashed border-ze-yellow/60 bg-ze-yellow/10 text-sm text-ze-yellow">
-                    Conclua o vídeo para liberar as alternativas desta pergunta. Isso garante que você absorveu todo o conteúdo antes de responder.
-                  </div>
-                )}
-
-                {isTextType ? (
-                  <div>
-                    <Label htmlFor="textAnswer" className="text-sm font-medium">
-                      Digite sua resposta:
-                    </Label>
-                    <Input
-                      id="textAnswer"
-                      value={textAnswer}
-                      onChange={(e) => setTextAnswer(e.target.value)}
-                      placeholder="Digite aqui..."
-                      className="mt-1"
-                      disabled={!questionUnlocked}
-                    />
+              <Card className="p-4">
+                <h3 className="font-semibold text-foreground mb-3">{checkpoint.situation}</h3>
+                
+                {showResult ? (
+                  <div className={`p-4 rounded-lg border-2 ${
+                    isCorrect
+                      ? "bg-ze-green/10 border-ze-green text-ze-green"
+                      : "bg-ze-red/10 border-ze-red text-ze-red"
+                  }`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      {isCorrect ? (
+                        <CheckCircle className="h-5 w-5" />
+                      ) : (
+                        <XCircle className="h-5 w-5" />
+                      )}
+                      <span className="font-semibold">
+                        {isCorrect ? "Correto!" : "Incorreto!"}
+                      </span>
+                    </div>
+                    <p className="text-sm opacity-90">
+                      {isCorrect
+                        ? "Parabéns! Você domina essa prática do Zé Delivery."
+                        : "Reveja os pontos principais do vídeo, ajuste sua estratégia e tente novamente."}
+                    </p>
                   </div>
                 ) : (
-                  <RadioGroup
-                    value={selectedAnswer}
-                    onValueChange={(value) => {
-                      if (!questionUnlocked) return;
-                      setSelectedAnswer(value);
-                    }}
-                  >
-                    {checkpoint.options.map((option, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <RadioGroupItem
-                          value={index.toString()}
-                          id={`option-${index}`}
-                          disabled={!questionUnlocked}
-                        />
-                        <Label
-                          htmlFor={`option-${index}`}
-                          className={`flex-1 ${questionUnlocked ? "cursor-pointer" : "opacity-50 cursor-not-allowed"}`}
-                        >
-                          {option}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                )}
-
-                {showHint && (
-                  <Card className="p-3 bg-ze-blue/10 border-ze-blue/30">
-                    <div className="flex items-start gap-2">
-                      <Lightbulb className="h-4 w-4 text-ze-blue mt-0.5" />
+                  <div className="space-y-4">
+                    {isTextType ? (
                       <div>
-                        <p className="text-sm font-medium text-ze-blue">Dica</p>
-                        <p className="text-sm text-foreground">{checkpoint.hint}</p>
+                        <Label htmlFor="textAnswer" className="text-sm font-medium">
+                          Digite sua resposta:
+                        </Label>
+                        <Input
+                          id="textAnswer"
+                          value={textAnswer}
+                          onChange={(e) => setTextAnswer(e.target.value)}
+                          placeholder="Digite aqui..."
+                          className="mt-1"
+                        />
                       </div>
-                    </div>
-                  </Card>
+                    ) : (
+                      <RadioGroup
+                        value={selectedAnswer}
+                        onValueChange={setSelectedAnswer}
+                      >
+                        {checkpoint.options.map((option, index) => (
+                          <div key={index} className="flex items-center space-x-2">
+                            <RadioGroupItem
+                              value={index.toString()}
+                              id={`option-${index}`}
+                            />
+                            <Label
+                              htmlFor={`option-${index}`}
+                              className="flex-1 cursor-pointer"
+                            >
+                              {option}
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    )}
+
+                    {showHint && (
+                      <Card className="p-3 bg-ze-blue/10 border-ze-blue/30">
+                        <div className="flex items-start gap-2">
+                          <Lightbulb className="h-4 w-4 text-ze-blue mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium text-ze-blue">Dica</p>
+                            <p className="text-sm text-foreground">{checkpoint.hint}</p>
+                          </div>
+                        </div>
+                      </Card>
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
-          </Card>
+              </Card>
+            </>
+          )}
 
           {/* Actions */}
-          {!showResult ? (
+          {showQuestion && !showResult ? (
             <div className="flex gap-3">
               <Button
                 variant="game-secondary"
                 onClick={() => setShowHint(!showHint)}
                 className="flex-1"
-                disabled={!questionUnlocked}
               >
                 <Lightbulb className="h-4 w-4" />
                 {showHint ? "Ocultar Dica" : "Mostrar Dica"}
@@ -267,14 +271,14 @@ export const CheckpointModal: React.FC<CheckpointModalProps> = ({
               <Button
                 variant="game"
                 onClick={handleSubmit}
-                disabled={!questionUnlocked || !currentAnswer.trim()}
+                disabled={!currentAnswer.trim()}
                 className="flex-1"
               >
                 <CheckCircle className="h-4 w-4" />
                 Confirmar Resposta
               </Button>
             </div>
-          ) : !isCorrect ? (
+          ) : showResult && !isCorrect ? (
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button
                 variant="game-secondary"
