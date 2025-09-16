@@ -11,9 +11,14 @@ import type { Player } from "@/hooks/useDatabase";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 
+function sanitizeId(raw: string) {
+  return raw.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
+}
+
 export const ZeDeliverySimulator: React.FC = () => {
   const { gameState, actions } = useGameState();
-  const { savePlayer, saveGameSession, saveCheckpointProgress } = useDatabase();
+  const { savePlayer, createSession, saveCheckpointProgress, updateGameSession, saveGameSession } = useDatabase();
+
   const [currentCheckpoint, setCurrentCheckpoint] = useState<number | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showCertificate, setShowCertificate] = useState(false);
@@ -23,24 +28,39 @@ export const ZeDeliverySimulator: React.FC = () => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [checkpointStartTime, setCheckpointStartTime] = useState<number>(Date.now());
 
-  const handleLogin = async (playerCode: string, playerName: string) => {
+  // onLogin compatível com ambos formatos:
+  // 1) handleLogin(code: string, name: string)
+  // 2) handleLogin({ id: string, name: string })
+  const handleLogin = async (a: any, b?: any) => {
     setLoginLoading(true);
     setLoginError("");
 
     try {
-      // Quick loading feedback for the user
-      await new Promise(resolve => setTimeout(resolve, 600));
+      // feedback rápido de carregamento
+      await new Promise((r) => setTimeout(r, 400));
 
-      const player = await savePlayer(playerCode, playerName);
-      if (!player) {
-        throw new Error("Não foi possível salvar seus dados. Tente novamente.");
-      }
+      const id = typeof a === "object" && a !== null ? String(a.id || "") : String(a || "");
+      const name = typeof a === "object" && a !== null ? String(a.name || "") : String(b || "");
+
+      const cleanId = sanitizeId(id);
+      const syntheticEmail = `${cleanId || "jogador"}@local`;
+
+      // Cria/recupera player (melhor dos dois mundos: nome visível + id consistente)
+      const player = await savePlayer(syntheticEmail, name);
+      if (!player) throw new Error("Não foi possível salvar seus dados. Tente novamente.");
 
       setCurrentPlayer(player);
-      setCurrentSessionId(null);
+
+      // Reinicia estado de jogo e inicia com nome no HUD
       actions.resetGame();
-      actions.startGame(playerName);
-      toast.success(`Bem-vindo(a), ${playerName}!`);
+      actions.startGame(name);
+
+      // Já cria uma sessão para registrar progresso de checkpoints desde o início
+      const session = await createSession(player.id);
+      if (!session) throw new Error("Não foi possível iniciar a sessão de jogo");
+      setCurrentSessionId(session.id);
+
+      toast.success(`Bem-vindo(a), ${name}!`);
     } catch (error) {
       setLoginError(error instanceof Error ? error.message : "Erro no login");
     } finally {
@@ -49,17 +69,20 @@ export const ZeDeliverySimulator: React.FC = () => {
   };
 
   const handleCheckpointReach = (checkpointId: number) => {
-    const checkpoint = gameState.checkpoints.find(cp => cp.id === checkpointId);
-    if (!checkpoint) {
-      return;
-    }
+    const checkpoint = gameState.checkpoints.find((cp) => cp.id === checkpointId);
+    if (!checkpoint) return;
 
+    // Regras combinadas: mensagens e bloqueios úteis
+    // Se existir status "locked" no objeto (compat) — bloqueia
+    // Se já concluído — informa e permite rever fora do modal
+    // Caso contrário — abre modal e registra início
+    // @ts-ignore (status pode não existir em alguns estados)
     if (checkpoint.status === "locked") {
       toast.warning("Conclua o checkpoint anterior para desbloquear este vídeo.");
       return;
     }
 
-    if (checkpoint.status === "completed") {
+    if (checkpoint.completed || (checkpoint as any).status === "completed") {
       toast.success("Este checkpoint já foi concluído. Revise o vídeo se quiser relembrar os pontos-chave.");
       return;
     }
@@ -67,10 +90,10 @@ export const ZeDeliverySimulator: React.FC = () => {
     setCurrentCheckpoint(checkpointId);
     setCheckpointStartTime(Date.now());
 
-    const message = checkpoint.status === "failed"
+    const failed = (checkpoint as any).status === "failed";
+    const message = failed
       ? "Revise o conteúdo com calma e tente responder novamente."
       : "Checkpoint encontrado! Assista ao vídeo e responda à questão educativa.";
-
     toast.info(message);
   };
 
@@ -78,95 +101,91 @@ export const ZeDeliverySimulator: React.FC = () => {
     const timeTaken = Math.floor((Date.now() - checkpointStartTime) / 1000);
 
     actions.answerCheckpoint(checkpointId, isCorrect);
+    setCurrentCheckpoint(null);
 
-    if (isCorrect) {
-      setCurrentCheckpoint(null);
-    }
-    
-    // Save checkpoint progress to database
+    // Persistência: salvar progresso do checkpoint se já temos sessão
     if (currentSessionId) {
       await saveCheckpointProgress(currentSessionId, checkpointId, isCorrect, timeTaken);
     }
-    
+
     if (isCorrect) {
       toast.success("Resposta correta! +100 pontos e KPIs melhorados!");
     } else {
       toast.error("Resposta incorreta. Você pode revisar e tentar de novo.");
     }
 
-    // Check game over
+    // Game Over (vidas esgotadas após este erro)
     if (gameState.stats.lives <= 1 && !isCorrect) {
       setTimeout(async () => {
         toast.error("Game Over! Suas vidas acabaram.");
-        await saveGameData(false);
+        await finalizeGame(false);
         actions.resetGame();
         setCurrentSessionId(null);
       }, 2000);
+      return;
     }
 
-    // Check victory - need to check the updated state
-    const updatedCompletedCount = gameState.checkpoints.filter(cp =>
-      cp.status === "completed" || (cp.id === checkpointId && isCorrect)
+    // Vitória: considerar ambos modelos (completed boolean OU status === "completed")
+    const updatedCompletedCount = gameState.checkpoints.filter(
+      (cp) => cp.completed || (cp as any).status === "completed" || cp.id === checkpointId
     ).length;
-    
+
     if (updatedCompletedCount === gameState.checkpoints.length && isCorrect) {
       setTimeout(async () => {
         toast.success("🎉 Parabéns! Você completou todos os 15 checkpoints do simulador!");
-        await saveGameData(true);
+        await finalizeGame(true);
         setShowCertificate(true);
       }, 2000);
     }
   };
 
-  const saveGameData = async (isCompleted: boolean) => {
+  const finalizeGame = async (isCompleted: boolean) => {
     if (!currentPlayer) return;
 
-    // Convert sessionTime from string format "Xm Ys" to seconds
+    // Converte "MM:SS" em segundos
     const timeInSeconds = (() => {
       const timeStr = gameState.stats.sessionTime;
-      const minutes = parseInt(timeStr.match(/(\d+)m/)?.[1] || '0', 10);
-      const seconds = parseInt(timeStr.match(/(\d+)s/)?.[1] || '0', 10);
+      const parts = timeStr.split(":"); // "MM:SS"
+      const minutes = parseInt(parts[0] || "0", 10);
+      const seconds = parseInt(parts[1] || "0", 10);
       return minutes * 60 + seconds;
     })();
 
-    const gameData = {
+    const payload = {
       score: gameState.stats.score,
-      lives_used: 5 - gameState.stats.lives,
+      lives_used: 3 - gameState.stats.lives,
       total_time: timeInSeconds,
-      completed_checkpoints: gameState.checkpoints.filter(cp => cp.status === "completed").length,
+      completed_checkpoints: gameState.checkpoints.filter(
+        (cp) => cp.completed || (cp as any).status === "completed"
+      ).length,
       accuracy_percentage: gameState.kpis.disponibilidade,
       delivery_efficiency: gameState.kpis.aceitacao,
       customer_satisfaction: gameState.kpis.avaliacao,
-      is_completed: isCompleted
-    };
+      is_completed: isCompleted,
+    } as const;
 
-    const session = await saveGameSession(currentPlayer, gameData);
-    if (session && !currentSessionId) {
-      setCurrentSessionId(session.id);
+    // Atualiza sessão existente ou cria fallback
+    if (currentSessionId) {
+      await updateGameSession(currentSessionId, payload);
+    } else {
+      const session = await saveGameSession(currentPlayer.id, payload);
+      if (session && !currentSessionId) setCurrentSessionId(session.id);
     }
   };
 
-  // Login screen
+  // Tela de login
   if (!gameState.currentUser) {
-    return (
-      <GameLogin
-        onLogin={handleLogin}
-        error={loginError}
-        loading={loginLoading}
-      />
-    );
+    return <GameLogin onLogin={handleLogin as any} error={loginError} loading={loginLoading} />;
   }
 
-  const currentCheckpointData = currentCheckpoint !== null 
-    ? gameState.checkpoints.find(cp => cp.id === currentCheckpoint)
-    : null;
+  const currentCheckpointData = currentCheckpoint !== null ? gameState.checkpoints.find((cp) => cp.id === currentCheckpoint) : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-bg-primary via-bg-secondary to-bg-tertiary">
       <div className="container mx-auto p-4 max-w-7xl space-y-6">
         {/* Game HUD */}
         <GameHUD
-          playerName={currentPlayer?.name || gameState.currentUser || "Jogador"}
+          playerName={gameState.currentUser || "Jogador"}
           playerCode={currentPlayer?.code}
           stats={gameState.stats}
           kpis={gameState.kpis}
@@ -174,58 +193,48 @@ export const ZeDeliverySimulator: React.FC = () => {
         />
 
         <Card className="p-6 bg-card/60 border-border/50 backdrop-blur-sm">
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="space-y-2">
               <h2 className="text-2xl font-semibold text-foreground">Objetivo do simulador</h2>
               <p className="text-muted-foreground leading-relaxed">
-                Aqui você pratica, passo a passo, o atendimento ideal do parceiro Zé Delivery. Os pontos aparecem em ordem: avance somente quando o número amarelo ficar verde após acertar a pergunta.
+                Aqui você pratica, passo a passo, o atendimento ideal do parceiro Zé Delivery. Em cada ponto do mapa, basta seguir os três passos abaixo.
               </p>
             </div>
 
-            <div className="md:flex md:items-start md:gap-6">
-              <div className="flex-1 space-y-4">
-                <ol className="space-y-3">
-                  <li className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
-                    <span className="text-2xl" role="img" aria-label="Abrir aula">📍</span>
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-foreground">1. Clique no ponto liberado</p>
-                      <p className="text-sm text-muted-foreground">Procure o número amarelo no mapa (ele indica a aula atual) e clique nele para abrir o vídeo.</p>
-                    </div>
-                  </li>
-
-                  <li className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
-                    <span className="text-2xl" role="img" aria-label="Assistir video">▶️</span>
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-foreground">2. Assista até o final</p>
-                      <p className="text-sm text-muted-foreground">A barra precisa chegar em 100%. Só então a pergunta será liberada automaticamente para resposta.</p>
-                    </div>
-                  </li>
-
-                  <li className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
-                    <span className="text-2xl" role="img" aria-label="Responder pergunta">✅</span>
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-foreground">3. Responda com calma</p>
-                      <p className="text-sm text-muted-foreground">Use o que acabou de aprender. Se errar, o ponto fica vermelho com um X e você pode assistir novamente para acertar.</p>
-                    </div>
-                  </li>
-                </ol>
-
-                <div className="p-3 rounded-lg border border-dashed border-ze-yellow/50 bg-ze-yellow/5 text-sm text-muted-foreground">
-                  <p>
-                    <span className="font-semibold text-foreground">Importante:</span> os pontos com <span className="font-semibold">cadeado</span> mostram a próxima aula. Eles só serão liberados quando você concluir a anterior. Assim, o progresso segue a sequência correta de vídeos.
-                  </p>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
+                <span className="text-2xl" role="img" aria-label="Abrir aula">📍</span>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">1. Abra a aula</p>
+                  <p className="text-sm text-muted-foreground">Clique ou toque na bebida do mapa para assistir ao conteúdo daquele tema.</p>
                 </div>
               </div>
 
-              <div className="md:w-72 lg:w-80 space-y-3 mt-6 md:mt-0">
-                <div className="p-3 rounded-lg bg-bg-tertiary/60 border border-border/30 text-sm text-muted-foreground">
-                  <p className="font-semibold text-foreground mb-1">Resultados em tempo real</p>
-                  <p>Os cartões acima mostram suas vidas, pontos e indicadores. Cada acerto melhora sua pontuação; cada erro gasta uma vida.</p>
+              <div className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
+                <span className="text-2xl" role="img" aria-label="Assistir video">▶️</span>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">2. Veja o vídeo até o final</p>
+                  <p className="text-sm text-muted-foreground">O botão da pergunta aparece sozinho quando a barra de progresso chega ao fim.</p>
                 </div>
-                <div className="p-3 rounded-lg bg-bg-tertiary/60 border border-border/30 text-sm text-muted-foreground">
-                  <p className="font-semibold text-foreground mb-1">Certificado ao final</p>
-                  <p>Complete todos os 15 checkpoints verdes para receber o certificado com seu nome e código.</p>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-bg-tertiary/40">
+                <span className="text-2xl" role="img" aria-label="Responder pergunta">✅</span>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">3. Responda com calma</p>
+                  <p className="text-sm text-muted-foreground">Use o que acabou de aprender. Se errar, o ponto fica vermelho e você pode tentar de novo.</p>
                 </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="p-3 rounded-lg bg-bg-tertiary/60 border border-border/30 text-sm text-muted-foreground">
+                <p className="font-semibold text-foreground mb-1">Resultados em tempo real</p>
+                <p>Os cartões acima mostram suas vidas, pontos e indicadores. Cada acerto melhora sua pontuação; cada erro gasta uma vida.</p>
+              </div>
+              <div className="p-3 rounded-lg bg-bg-tertiary/60 border border-border/30 text-sm text-muted-foreground">
+                <p className="font-semibold text-foreground mb-1">Certificado ao final</p>
+                <p>Complete todos os 15 checkpoints verdes para receber o certificado com seu nome.</p>
               </div>
             </div>
           </div>
@@ -284,17 +293,17 @@ export const ZeDeliverySimulator: React.FC = () => {
         }}
         playerData={{
           name: currentPlayer?.name || gameState.currentUser || "Jogador",
-          code: currentPlayer?.code || "Sem código",
+          code: (currentPlayer as any)?.code || "jogador@local",
           score: gameState.stats.score,
           totalTime: (() => {
-            const timeStr = gameState.stats.sessionTime;
-            const minutes = parseInt(timeStr.match(/(\d+)m/)?.[1] || '0', 10);
-            const seconds = parseInt(timeStr.match(/(\d+)s/)?.[1] || '0', 10);
+            const parts = gameState.stats.sessionTime.split(":");
+            const minutes = parseInt(parts[0] || "0", 10);
+            const seconds = parseInt(parts[1] || "0", 10);
             return minutes * 60 + seconds;
           })(),
           accuracy: gameState.kpis.disponibilidade,
           deliveryEfficiency: gameState.kpis.aceitacao,
-          customerSatisfaction: gameState.kpis.avaliacao
+          customerSatisfaction: gameState.kpis.avaliacao,
         }}
       />
     </div>

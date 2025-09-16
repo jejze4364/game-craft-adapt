@@ -5,42 +5,65 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+// --- Tipagem: aceitar ambos formatos de callback ---
+// 1) onLogin(playerCode: string, playerName: string)
+// 2) onLogin({ id: string, name: string })
+
+type OnLoginFn =
+  | ((playerCode: string, playerName: string) => void)
+  | ((args: { id: string; name: string }) => void);
+
 interface GameLoginProps {
-  onLogin: (playerCode: string, playerName: string) => void;
+  onLogin: OnLoginFn;
   error?: string;
   loading?: boolean;
 }
 
-const DEFAULT_PASSWORD = "Ze2025";
-const DEFAULT_PASSWORD_NORMALIZED = DEFAULT_PASSWORD.toLowerCase();
+// Senha canônica (case-insensitive). Exibe sugestão "Ze2025" mas valida sem diferenciar maiúsc./minúsc.
+const CANONICAL_PASSWORD = "ze2025";
 
 export const GameLogin: React.FC<GameLoginProps> = ({
   onLogin,
   error,
-  loading = false
+  loading = false,
 }) => {
-  const [playerCode, setPlayerCode] = useState("");
-  const [playerName, setPlayerName] = useState("");
-  const [password, setPassword] = useState(DEFAULT_PASSWORD);
+  const [id, setId] = useState("");
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState("");
 
-  const isPasswordValid = password.trim().toLowerCase() === DEFAULT_PASSWORD_NORMALIZED;
+  const isPasswordValid = password.trim().toLowerCase() === CANONICAL_PASSWORD;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError("");
 
-    if (!playerCode.trim() || !playerName.trim()) {
+    if (!id.trim() || !name.trim()) {
       setLocalError("Informe seu código e seu nome completo.");
       return;
     }
 
     if (!isPasswordValid) {
-      setLocalError("A senha padrão é Ze2025. Verifique se digitou corretamente e tente novamente.");
+      setLocalError(
+        "A senha padrão é Ze2025. Verifique se digitou corretamente e tente novamente."
+      );
       return;
     }
 
-    onLogin(playerCode.trim(), playerName.trim());
+    const trimmedId = id.trim();
+    const trimmedName = name.trim();
+
+    // Chamada compatível com ambas assinaturas
+    const fn = onLogin as any;
+    if (typeof fn === "function") {
+      if (typeof fn.length === "number" && fn.length >= 2) {
+        // Versão (code, name)
+        fn(trimmedId, trimmedName);
+      } else {
+        // Versão ({ id, name })
+        fn({ id: trimmedId, name: trimmedName });
+      }
+    }
   };
 
   return (
@@ -57,14 +80,14 @@ export const GameLogin: React.FC<GameLoginProps> = ({
             </span>
           </h1>
           <p className="text-muted-foreground">
-            Preencha os dois passos simples para iniciar o treinamento
+            Preencha os três passos simples para iniciar o treinamento
           </p>
         </div>
 
         {/* Login Card */}
         <Card className="p-8 bg-card/80 backdrop-blur-sm border-border/50 shadow-xl animate-slide-in-up">
           {(error || localError) && (
-            <Alert className="mb-6 border-destructive/50 bg-destructive/10 animate-shake">
+            <Alert id="login-alert" className="mb-6 border-destructive/50 bg-destructive/10 animate-shake">
               <AlertDescription className="text-destructive-foreground">
                 {localError || error}
               </AlertDescription>
@@ -91,18 +114,19 @@ export const GameLogin: React.FC<GameLoginProps> = ({
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="playerCode" className="text-sm font-semibold">
+              <Label htmlFor="id" className="text-sm font-semibold">
                 1. Digite o seu código de participante
               </Label>
               <Input
-                id="playerCode"
+                id="id"
                 type="text"
                 placeholder="Ex.: 12345"
-                value={playerCode}
-                onChange={(e) => setPlayerCode(e.target.value)}
+                value={id}
+                onChange={(e) => setId(e.target.value)}
                 className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20"
                 disabled={loading}
                 autoComplete="off"
+                required
               />
               <p className="text-xs text-muted-foreground">
                 Esse código identifica o seu resultado no relatório final.
@@ -110,18 +134,19 @@ export const GameLogin: React.FC<GameLoginProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="playerName" className="text-sm font-semibold">
+              <Label htmlFor="name" className="text-sm font-semibold">
                 2. Escreva seu nome completo
               </Label>
               <Input
-                id="playerName"
+                id="name"
                 type="text"
                 placeholder="Como você quer aparecer no certificado"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20"
                 disabled={loading}
-                autoComplete="off"
+                autoComplete="name"
+                required
               />
               <p className="text-xs text-muted-foreground">
                 Use letras maiúsculas e minúsculas se preferir, será exibido exatamente assim.
@@ -130,33 +155,32 @@ export const GameLogin: React.FC<GameLoginProps> = ({
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-semibold">
-                3. Digite a senha padrão do treinamento
+                3. Senha do treinamento
               </Label>
               <Input
                 id="password"
-                type="text"
+                type="password"
                 placeholder="Ze2025"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20 font-mono tracking-wider uppercase"
+                className="bg-bg-tertiary border-border focus:border-primary focus:ring-primary/20 font-mono tracking-wider"
                 disabled={loading}
                 autoComplete="off"
+                required
               />
               <p className="text-xs text-muted-foreground">
-                A senha é sempre Ze2025. Se preferir, deixe preenchido exatamente como aparece acima.
+                A senha é sempre Ze2025 (não diferencia maiúsculas e minúsculas).
               </p>
+              {password && !isPasswordValid && (
+                <p className="text-xs text-destructive">Senha incorreta. Verifique com a liderança.</p>
+              )}
             </div>
 
-            <div className="space-y-3 pt-2">
+            <div className="pt-2">
               <Button
                 type="submit"
                 className="w-full bg-gradient-primary hover:shadow-glow-strong transition-all duration-200 hover:-translate-y-0.5 font-semibold"
-                disabled={
-                  loading ||
-                  !playerCode.trim() ||
-                  !playerName.trim() ||
-                  !isPasswordValid
-                }
+                disabled={loading || !id.trim() || !name.trim() || !isPasswordValid}
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
@@ -176,7 +200,7 @@ export const GameLogin: React.FC<GameLoginProps> = ({
                 <span className="text-xl">🖱️</span>
                 <div>
                   <p className="font-semibold text-foreground">Use o mouse ou o dedo</p>
-                  <p>Depois do login, clique nos pontos do mapa para abrir as aulas.</p>
+                  <p>Depois do login, clique nas bebidas do mapa para abrir as aulas.</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-bg-tertiary/60 border border-border/40 rounded-lg p-3">
@@ -201,7 +225,7 @@ export const GameLogin: React.FC<GameLoginProps> = ({
         <div className="grid grid-cols-3 gap-4 text-center">
           <div className="space-y-1">
             <div className="text-2xl">1️⃣</div>
-            <div className="text-xs text-muted-foreground">Clique em um ponto</div>
+            <div className="text-xs text-muted-foreground">Clique nas bebidas</div>
           </div>
           <div className="space-y-1">
             <div className="text-2xl">2️⃣</div>
